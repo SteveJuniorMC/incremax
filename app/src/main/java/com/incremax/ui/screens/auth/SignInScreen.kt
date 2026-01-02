@@ -171,7 +171,8 @@ fun SignInScreen(
                             )
                         }
                         .addOnFailureListener { e ->
-                            viewModel.setError("Google Sign-In failed: ${e.localizedMessage ?: "Unknown error"}")
+                            val errorMsg = "${e.javaClass.simpleName}: ${e.message}"
+                            viewModel.setError(errorMsg)
                         }
                 },
                 modifier = Modifier
