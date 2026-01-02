@@ -49,19 +49,19 @@ class HomeViewModel @Inject constructor(
     )
 
     init {
-        initializeData()
-        loadData()
+        viewModelScope.launch {
+            initializeData()
+            loadData()
+        }
     }
 
-    private fun initializeData() {
-        viewModelScope.launch {
-            userStatsRepository.initializeStats()
-            // Seed preset exercises if needed
-            val exercises = exerciseRepository.getAllExercises().first()
-            if (exercises.isEmpty()) {
-                PresetExercises.all.forEach { exercise ->
-                    exerciseRepository.insertExercise(exercise)
-                }
+    private suspend fun initializeData() {
+        userStatsRepository.initializeStats()
+        // Seed preset exercises if needed
+        val exercises = exerciseRepository.getAllExercises().first()
+        if (exercises.isEmpty()) {
+            PresetExercises.all.forEach { exercise ->
+                exerciseRepository.insertExercise(exercise)
             }
         }
     }
