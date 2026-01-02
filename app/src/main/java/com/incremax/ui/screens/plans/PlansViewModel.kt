@@ -40,7 +40,8 @@ data class PlansUiState(
 class PlansViewModel @Inject constructor(
     private val workoutPlanRepository: WorkoutPlanRepository,
     private val exerciseRepository: ExerciseRepository,
-    private val notificationScheduler: NotificationScheduler
+    private val notificationScheduler: NotificationScheduler,
+    private val notificationSettingsRepository: NotificationSettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlansUiState())
@@ -123,6 +124,8 @@ class PlansViewModel @Inject constructor(
     fun setReminder(time: LocalTime) {
         val planInfo = _uiState.value.activatedPlan ?: return
         viewModelScope.launch {
+            // Enable global workout reminders setting
+            notificationSettingsRepository.updateWorkoutRemindersEnabled(true)
             workoutPlanRepository.updateReminder(planInfo.id, true, time)
             notificationScheduler.scheduleAllPlanReminders()
             _uiState.update { it.copy(showReminderPrompt = false, activatedPlan = null) }
