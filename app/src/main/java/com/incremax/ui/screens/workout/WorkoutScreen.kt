@@ -117,13 +117,9 @@ class WorkoutViewModel @Inject constructor(
             val plan = state.plan ?: return@launch
             val today = LocalDate.now()
 
-            // Calculate XP
+            // Fixed XP per workout - no bonuses to discourage fudging data
             val userStats = userStatsRepository.getUserStatsSync()
-            val isPerfect = state.completedAmount >= state.targetAmount
-            val xpEarned = XpRewards.calculateWorkoutXp(
-                streakDays = userStats.currentStreak,
-                isPerfect = isPerfect
-            )
+            val xpEarned = XpRewards.calculateWorkoutXp()
 
             // Create session
             val session = WorkoutSession(
@@ -399,8 +395,6 @@ fun WorkoutCompletionDialog(
     exerciseUnit: String,
     onDismiss: () -> Unit
 ) {
-    val isPerfect = completedAmount >= targetAmount
-
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -410,23 +404,16 @@ fun WorkoutCompletionDialog(
                     .clip(CircleShape)
                     .background(
                         Brush.linearGradient(
-                            colors = if (isPerfect) {
-                                listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.tertiary
-                                )
-                            } else {
-                                listOf(
-                                    MaterialTheme.colorScheme.secondary,
-                                    MaterialTheme.colorScheme.secondary
-                                )
-                            }
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.tertiary
+                            )
                         )
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    if (isPerfect) Icons.Default.EmojiEvents else Icons.Default.Check,
+                    Icons.Default.Check,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(36.dp)
@@ -435,7 +422,7 @@ fun WorkoutCompletionDialog(
         },
         title = {
             Text(
-                text = if (isPerfect) "Excellent!" else "Good Job!",
+                text = "Workout Complete!",
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
