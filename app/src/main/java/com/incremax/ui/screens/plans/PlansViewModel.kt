@@ -85,8 +85,14 @@ class PlansViewModel @Inject constructor(
                     exercises = exercises,
                     isLoading = false
                 )
-            }.collect { state ->
-                _uiState.value = state
+            }.collect { newState ->
+                _uiState.update { current ->
+                    newState.copy(
+                        selectedTab = current.selectedTab,
+                        showReminderPrompt = current.showReminderPrompt,
+                        activatedPlan = current.activatedPlan
+                    )
+                }
             }
         }
     }
