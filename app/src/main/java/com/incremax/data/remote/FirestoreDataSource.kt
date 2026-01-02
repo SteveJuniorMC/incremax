@@ -191,7 +191,7 @@ class FirestoreDataSource @Inject constructor(
         id = id,
         name = this["name"] as? String ?: "",
         type = (this["type"] as? String)?.let { ExerciseType.valueOf(it) } ?: ExerciseType.REPS,
-        category = (this["category"] as? String)?.let { ExerciseCategory.valueOf(it) } ?: ExerciseCategory.STRENGTH,
+        category = (this["category"] as? String)?.let { ExerciseCategory.valueOf(it) } ?: ExerciseCategory.BODYWEIGHT,
         unit = this["unit"] as? String ?: "",
         icon = this["icon"] as? String ?: "",
         description = this["description"] as? String ?: "",
