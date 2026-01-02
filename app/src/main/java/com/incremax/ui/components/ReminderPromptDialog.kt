@@ -1,12 +1,13 @@
 package com.incremax.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -29,9 +30,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.PermissionChecker
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
@@ -44,7 +48,42 @@ fun ReminderPromptDialog(
 ) {
     var showTimePicker by remember { mutableStateOf(false) }
     var selectedTime by remember { mutableStateOf(LocalTime.of(9, 0)) }
+    var pendingTime by remember { mutableStateOf<LocalTime?>(null) }
     val timeFormatter = DateTimeFormatter.ofPattern("h:mm a")
+    val context = LocalContext.current
+
+    fun hasNotificationPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PermissionChecker.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            pendingTime?.let { time ->
+                onSetReminder(time)
+            }
+        }
+        pendingTime = null
+    }
+
+    fun requestPermissionAndSetReminder(time: LocalTime) {
+        if (hasNotificationPermission()) {
+            onSetReminder(time)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pendingTime = time
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            onSetReminder(time)
+        }
+    }
 
     if (showTimePicker) {
         val timePickerState = rememberTimePickerState(
@@ -62,7 +101,7 @@ fun ReminderPromptDialog(
                 TextButton(onClick = {
                     selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
                     showTimePicker = false
-                    onSetReminder(selectedTime)
+                    requestPermissionAndSetReminder(selectedTime)
                 }) {
                     Text("Set Reminder")
                 }
@@ -126,7 +165,7 @@ fun ReminderPromptDialog(
             },
             confirmButton = {
                 Button(
-                    onClick = { onSetReminder(selectedTime) }
+                    onClick = { requestPermissionAndSetReminder(selectedTime) }
                 ) {
                     Text("Enable Reminder")
                 }
