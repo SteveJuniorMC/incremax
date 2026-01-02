@@ -65,12 +65,14 @@ fun IncremaxNavHost() {
                             label = { Text(item.title) },
                             selected = selected,
                             onClick = {
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                                if (item.route != currentDestination?.route) {
+                                    navController.navigate(item.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = item.route != NavRoutes.Home.route
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
                             }
                         )
