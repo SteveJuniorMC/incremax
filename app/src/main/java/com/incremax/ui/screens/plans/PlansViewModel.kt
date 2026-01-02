@@ -17,7 +17,8 @@ data class PlanWithExercise(
     val plan: WorkoutPlan,
     val exercise: Exercise,
     val currentTarget: Int,
-    val progressPercentage: Float
+    val progressPercentage: Float,
+    val isCompletedToday: Boolean = false
 )
 
 data class ActivatedPlanInfo(
@@ -40,6 +41,7 @@ data class PlansUiState(
 class PlansViewModel @Inject constructor(
     private val workoutPlanRepository: WorkoutPlanRepository,
     private val exerciseRepository: ExerciseRepository,
+    private val workoutSessionRepository: WorkoutSessionRepository,
     private val notificationScheduler: NotificationScheduler,
     private val notificationSettingsRepository: NotificationSettingsRepository
 ) : ViewModel() {
@@ -53,12 +55,17 @@ class PlansViewModel @Inject constructor(
 
     private fun loadData() {
         viewModelScope.launch {
+            val today = LocalDate.now()
             combine(
                 workoutPlanRepository.getActivePlans(),
                 workoutPlanRepository.getCompletedPlans(),
-                exerciseRepository.getAllExercises()
-            ) { active, completed, exercises ->
-                val today = LocalDate.now()
+                exerciseRepository.getAllExercises(),
+                workoutSessionRepository.getSessionsByDate(today)
+            ) { active, completed, exercises, todaySessions ->
+                val completedPlanIds = todaySessions
+                    .filter { it.isCompleted }
+                    .map { it.planId }
+                    .toSet()
 
                 val activePlansWithExercise = active.mapNotNull { plan ->
                     val exercise = exercises.find { it.id == plan.exerciseId } ?: return@mapNotNull null
@@ -66,7 +73,8 @@ class PlansViewModel @Inject constructor(
                         plan = plan,
                         exercise = exercise,
                         currentTarget = plan.getCurrentTarget(today),
-                        progressPercentage = plan.getProgressPercentage(today)
+                        progressPercentage = plan.getProgressPercentage(today),
+                        isCompletedToday = plan.id in completedPlanIds
                     )
                 }
 
@@ -76,7 +84,8 @@ class PlansViewModel @Inject constructor(
                         plan = plan,
                         exercise = exercise,
                         currentTarget = plan.targetAmount,
-                        progressPercentage = 1f
+                        progressPercentage = 1f,
+                        isCompletedToday = true
                     )
                 }
 
