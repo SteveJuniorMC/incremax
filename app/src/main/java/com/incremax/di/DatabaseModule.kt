@@ -24,7 +24,9 @@ object DatabaseModule {
             context,
             IncremaxDatabase::class.java,
             IncremaxDatabase.DATABASE_NAME
-        ).build()
+        )
+            .addMigrations(IncremaxDatabase.MIGRATION_1_2)
+            .build()
     }
 
     @Provides

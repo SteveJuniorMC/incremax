@@ -18,12 +18,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.incremax.domain.model.*
 import com.incremax.domain.repository.*
+import com.incremax.notification.NotificationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.UUID
 import javax.inject.Inject
+
+data class CreatedPlanInfo(
+    val id: String,
+    val name: String
+)
 
 data class CreatePlanUiState(
     val exercises: List<Exercise> = emptyList(),
@@ -36,13 +43,16 @@ data class CreatePlanUiState(
     val incrementFrequency: IncrementFrequency = IncrementFrequency.WEEKLY,
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val showReminderPrompt: Boolean = false,
+    val createdPlan: CreatedPlanInfo? = null
 )
 
 @HiltViewModel
 class CreatePlanViewModel @Inject constructor(
     private val workoutPlanRepository: WorkoutPlanRepository,
-    private val exerciseRepository: ExerciseRepository
+    private val exerciseRepository: ExerciseRepository,
+    private val notificationScheduler: NotificationScheduler
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreatePlanUiState())
@@ -127,8 +137,9 @@ class CreatePlanViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
 
+            val planId = UUID.randomUUID().toString()
             val plan = WorkoutPlan(
-                id = UUID.randomUUID().toString(),
+                id = planId,
                 name = state.planName,
                 description = state.description,
                 exerciseId = state.selectedExercise.id,
@@ -142,7 +153,29 @@ class CreatePlanViewModel @Inject constructor(
             )
 
             workoutPlanRepository.insertPlan(plan)
-            _uiState.update { it.copy(isSaving = false) }
+            _uiState.update {
+                it.copy(
+                    isSaving = false,
+                    showReminderPrompt = true,
+                    createdPlan = CreatedPlanInfo(id = planId, name = state.planName)
+                )
+            }
+        }
+    }
+
+    fun setReminder(time: LocalTime) {
+        val planInfo = _uiState.value.createdPlan ?: return
+        viewModelScope.launch {
+            workoutPlanRepository.updateReminder(planInfo.id, true, time)
+            notificationScheduler.scheduleAllPlanReminders()
+            _uiState.update { it.copy(showReminderPrompt = false) }
+            _planCreated.emit(Unit)
+        }
+    }
+
+    fun skipReminder() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(showReminderPrompt = false) }
             _planCreated.emit(Unit)
         }
     }
@@ -167,6 +200,14 @@ fun CreatePlanScreen(
         viewModel.planCreated.collect {
             onPlanCreated()
         }
+    }
+
+    if (uiState.showReminderPrompt && uiState.createdPlan != null) {
+        com.incremax.ui.components.ReminderPromptDialog(
+            planName = uiState.createdPlan!!.name,
+            onSetReminder = { time -> viewModel.setReminder(time) },
+            onSkip = { viewModel.skipReminder() }
+        )
     }
 
     Scaffold(

@@ -2,6 +2,7 @@ package com.incremax.domain.repository
 
 import com.incremax.domain.model.WorkoutPlan
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalTime
 
 interface WorkoutPlanRepository {
     fun getAllPlans(): Flow<List<WorkoutPlan>>
@@ -14,4 +15,7 @@ interface WorkoutPlanRepository {
     suspend fun deletePlan(id: String)
     suspend fun setActive(id: String, isActive: Boolean)
     suspend fun getCompletedPlansCount(): Int
+    suspend fun updateReminder(id: String, enabled: Boolean, time: LocalTime?)
+    fun getPlansWithReminders(): Flow<List<WorkoutPlan>>
+    suspend fun getPlansWithRemindersSync(): List<WorkoutPlan>
 }

@@ -6,6 +6,8 @@ import com.incremax.domain.model.WorkoutPlan
 import com.incremax.domain.repository.WorkoutPlanRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 class WorkoutPlanRepositoryImpl @Inject constructor(
@@ -56,5 +58,20 @@ class WorkoutPlanRepositoryImpl @Inject constructor(
 
     override suspend fun getCompletedPlansCount(): Int {
         return workoutPlanDao.getCompletedPlansCount()
+    }
+
+    override suspend fun updateReminder(id: String, enabled: Boolean, time: LocalTime?) {
+        val timeString = time?.format(DateTimeFormatter.ISO_LOCAL_TIME)
+        workoutPlanDao.updateReminder(id, enabled, timeString)
+    }
+
+    override fun getPlansWithReminders(): Flow<List<WorkoutPlan>> {
+        return workoutPlanDao.getPlansWithReminders().map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
+    override suspend fun getPlansWithRemindersSync(): List<WorkoutPlan> {
+        return workoutPlanDao.getPlansWithRemindersSync().map { it.toDomain() }
     }
 }

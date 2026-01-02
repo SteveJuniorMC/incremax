@@ -6,11 +6,13 @@ import com.incremax.domain.model.ExerciseType
 import com.incremax.domain.model.IncrementFrequency
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 class Converters {
     private val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
     private val dateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+    private val timeFormatter = DateTimeFormatter.ISO_LOCAL_TIME
 
     @TypeConverter
     fun fromLocalDate(date: LocalDate?): String? = date?.format(dateFormatter)
@@ -23,6 +25,12 @@ class Converters {
 
     @TypeConverter
     fun toLocalDateTime(value: String?): LocalDateTime? = value?.let { LocalDateTime.parse(it, dateTimeFormatter) }
+
+    @TypeConverter
+    fun fromLocalTime(time: LocalTime?): String? = time?.format(timeFormatter)
+
+    @TypeConverter
+    fun toLocalTime(value: String?): LocalTime? = value?.let { LocalTime.parse(it, timeFormatter) }
 
     @TypeConverter
     fun fromExerciseType(type: ExerciseType): String = type.name

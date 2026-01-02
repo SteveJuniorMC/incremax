@@ -7,7 +7,9 @@ import com.incremax.domain.repository.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.incremax.notification.NotificationScheduler
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.UUID
 import javax.inject.Inject
 
@@ -18,19 +20,27 @@ data class PlanWithExercise(
     val progressPercentage: Float
 )
 
+data class ActivatedPlanInfo(
+    val id: String,
+    val name: String
+)
+
 data class PlansUiState(
     val activePlans: List<PlanWithExercise> = emptyList(),
     val completedPlans: List<PlanWithExercise> = emptyList(),
     val presetPlans: List<WorkoutPlan> = PresetPlans.all,
     val exercises: List<Exercise> = emptyList(),
     val isLoading: Boolean = true,
-    val selectedTab: Int = 0
+    val selectedTab: Int = 0,
+    val showReminderPrompt: Boolean = false,
+    val activatedPlan: ActivatedPlanInfo? = null
 )
 
 @HiltViewModel
 class PlansViewModel @Inject constructor(
     private val workoutPlanRepository: WorkoutPlanRepository,
-    private val exerciseRepository: ExerciseRepository
+    private val exerciseRepository: ExerciseRepository,
+    private val notificationScheduler: NotificationScheduler
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlansUiState())
@@ -87,13 +97,34 @@ class PlansViewModel @Inject constructor(
 
     fun activatePresetPlan(presetPlan: WorkoutPlan) {
         viewModelScope.launch {
+            val planId = UUID.randomUUID().toString()
             val newPlan = presetPlan.copy(
-                id = UUID.randomUUID().toString(),
+                id = planId,
                 startDate = LocalDate.now(),
                 isActive = true
             )
             workoutPlanRepository.insertPlan(newPlan)
+            _uiState.update {
+                it.copy(
+                    showReminderPrompt = true,
+                    activatedPlan = ActivatedPlanInfo(id = planId, name = presetPlan.name),
+                    selectedTab = 0
+                )
+            }
         }
+    }
+
+    fun setReminder(time: LocalTime) {
+        val planInfo = _uiState.value.activatedPlan ?: return
+        viewModelScope.launch {
+            workoutPlanRepository.updateReminder(planInfo.id, true, time)
+            notificationScheduler.scheduleAllPlanReminders()
+            _uiState.update { it.copy(showReminderPrompt = false, activatedPlan = null) }
+        }
+    }
+
+    fun skipReminder() {
+        _uiState.update { it.copy(showReminderPrompt = false, activatedPlan = null) }
     }
 
     fun deletePlan(planId: String) {

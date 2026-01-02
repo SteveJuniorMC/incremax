@@ -5,6 +5,7 @@ import androidx.room.PrimaryKey
 import com.incremax.domain.model.*
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 
 @Entity(tableName = "exercises")
 data class ExerciseEntity(
@@ -55,7 +56,9 @@ data class WorkoutPlanEntity(
     val startDate: LocalDate,
     val isActive: Boolean,
     val isPreset: Boolean,
-    val completedDate: LocalDate?
+    val completedDate: LocalDate?,
+    val reminderEnabled: Boolean = false,
+    val reminderTime: LocalTime? = null
 ) {
     fun toDomain() = WorkoutPlan(
         id = id,
@@ -69,7 +72,9 @@ data class WorkoutPlanEntity(
         startDate = startDate,
         isActive = isActive,
         isPreset = isPreset,
-        completedDate = completedDate
+        completedDate = completedDate,
+        reminderEnabled = reminderEnabled,
+        reminderTime = reminderTime
     )
 
     companion object {
@@ -85,7 +90,9 @@ data class WorkoutPlanEntity(
             startDate = plan.startDate,
             isActive = plan.isActive,
             isPreset = plan.isPreset,
-            completedDate = plan.completedDate
+            completedDate = plan.completedDate,
+            reminderEnabled = plan.reminderEnabled,
+            reminderTime = plan.reminderTime
         )
     }
 }

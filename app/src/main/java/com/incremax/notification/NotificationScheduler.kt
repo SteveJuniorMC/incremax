@@ -2,10 +2,13 @@ package com.incremax.notification
 
 import android.content.Context
 import androidx.work.Constraints
+import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.incremax.domain.model.NotificationSettings
+import com.incremax.domain.model.WorkoutPlan
+import com.incremax.domain.repository.WorkoutPlanRepository
 import com.incremax.notification.worker.StreakAlertWorker
 import com.incremax.notification.worker.WorkoutReminderWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -18,19 +21,31 @@ import javax.inject.Singleton
 
 @Singleton
 class NotificationScheduler @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val workoutPlanRepository: WorkoutPlanRepository
 ) {
     private val workManager = WorkManager.getInstance(context)
 
-    fun scheduleWorkoutReminder(time: LocalTime) {
+    fun schedulePlanReminder(plan: WorkoutPlan) {
+        val time = plan.reminderTime ?: return
+        if (!plan.reminderEnabled) return
+
         val delay = calculateDelayUntil(time)
+        val workName = getPlanReminderWorkName(plan.id)
+
+        val inputData = Data.Builder()
+            .putString(WorkoutReminderWorker.KEY_PLAN_ID, plan.id)
+            .putString(WorkoutReminderWorker.KEY_PLAN_NAME, plan.name)
+            .build()
 
         val workRequest = PeriodicWorkRequestBuilder<WorkoutReminderWorker>(
             repeatInterval = 1,
             repeatIntervalTimeUnit = TimeUnit.DAYS
         )
             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-            .addTag(WORKOUT_REMINDER_TAG)
+            .setInputData(inputData)
+            .addTag(PLAN_REMINDER_TAG)
+            .addTag(plan.id)
             .setConstraints(
                 Constraints.Builder()
                     .setRequiresBatteryNotLow(true)
@@ -39,14 +54,25 @@ class NotificationScheduler @Inject constructor(
             .build()
 
         workManager.enqueueUniquePeriodicWork(
-            WORKOUT_REMINDER_WORK_NAME,
+            workName,
             ExistingPeriodicWorkPolicy.UPDATE,
             workRequest
         )
     }
 
-    fun cancelWorkoutReminder() {
-        workManager.cancelUniqueWork(WORKOUT_REMINDER_WORK_NAME)
+    fun cancelPlanReminder(planId: String) {
+        workManager.cancelUniqueWork(getPlanReminderWorkName(planId))
+    }
+
+    suspend fun scheduleAllPlanReminders() {
+        // Cancel all existing plan reminders first
+        workManager.cancelAllWorkByTag(PLAN_REMINDER_TAG)
+
+        // Schedule reminders for all plans that have them enabled
+        val plans = workoutPlanRepository.getPlansWithRemindersSync()
+        plans.forEach { plan ->
+            schedulePlanReminder(plan)
+        }
     }
 
     fun scheduleStreakAlert(time: LocalTime) {
@@ -101,9 +127,12 @@ class NotificationScheduler @Inject constructor(
         return Duration.between(now, targetDateTime).toMillis()
     }
 
+    private fun getPlanReminderWorkName(planId: String) = "plan_reminder_$planId"
+
     companion object {
         const val WORKOUT_REMINDER_WORK_NAME = "workout_reminder"
         const val WORKOUT_REMINDER_TAG = "workout_reminder_tag"
+        const val PLAN_REMINDER_TAG = "plan_reminder_tag"
         const val STREAK_ALERT_WORK_NAME = "streak_alert"
         const val STREAK_ALERT_TAG = "streak_alert_tag"
     }

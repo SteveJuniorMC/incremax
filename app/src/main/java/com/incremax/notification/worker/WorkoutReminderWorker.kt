@@ -10,7 +10,6 @@ import com.incremax.domain.repository.WorkoutSessionRepository
 import com.incremax.notification.NotificationHelper
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 
 @HiltWorker
@@ -24,11 +23,44 @@ class WorkoutReminderWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
+        // Check if this is a plan-specific reminder
+        val planId = inputData.getString(KEY_PLAN_ID)
+        val planName = inputData.getString(KEY_PLAN_NAME)
+
+        if (planId != null && planName != null) {
+            // Per-plan reminder
+            return handlePlanReminder(planId, planName)
+        }
+
+        // Legacy global reminder (for backwards compatibility)
+        return handleGlobalReminder()
+    }
+
+    private suspend fun handlePlanReminder(planId: String, planName: String): Result {
+        val today = LocalDate.now()
+
+        // Check if the plan still exists and is active
+        val plan = workoutPlanRepository.getPlanById(planId)
+        if (plan == null || !plan.isActive || !plan.reminderEnabled) {
+            return Result.success()
+        }
+
+        // Check if user already completed this plan today
+        val todaySession = workoutSessionRepository.getSessionForPlanOnDate(planId, today)
+        if (todaySession?.isCompleted == true) {
+            return Result.success()
+        }
+
+        notificationHelper.showPlanReminder(planName)
+        return Result.success()
+    }
+
+    private suspend fun handleGlobalReminder(): Result {
         val settings = notificationSettingsRepository.getSettingsSync()
         if (!settings.workoutRemindersEnabled) return Result.success()
 
         val today = LocalDate.now()
-        val activePlans = workoutPlanRepository.getActivePlans().first()
+        val activePlans = workoutPlanRepository.getPlansWithRemindersSync()
         val todaySessions = workoutSessionRepository.getSessionsByDateSync(today)
 
         val completedPlanIds = todaySessions
@@ -43,5 +75,10 @@ class WorkoutReminderWorker @AssistedInject constructor(
         }
 
         return Result.success()
+    }
+
+    companion object {
+        const val KEY_PLAN_ID = "plan_id"
+        const val KEY_PLAN_NAME = "plan_name"
     }
 }

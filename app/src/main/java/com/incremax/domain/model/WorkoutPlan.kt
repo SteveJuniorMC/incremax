@@ -1,6 +1,7 @@
 package com.incremax.domain.model
 
 import java.time.LocalDate
+import java.time.LocalTime
 
 enum class IncrementFrequency {
     DAILY,
@@ -21,7 +22,9 @@ data class WorkoutPlan(
     val startDate: LocalDate,
     val isActive: Boolean = true,
     val isPreset: Boolean = false,
-    val completedDate: LocalDate? = null
+    val completedDate: LocalDate? = null,
+    val reminderEnabled: Boolean = false,
+    val reminderTime: LocalTime? = null
 ) {
     fun getCurrentTarget(currentDate: LocalDate): Int {
         val daysSinceStart = java.time.temporal.ChronoUnit.DAYS.between(startDate, currentDate).toInt()

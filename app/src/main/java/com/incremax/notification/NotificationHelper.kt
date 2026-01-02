@@ -118,6 +118,17 @@ class NotificationHelper @Inject constructor(
         )
     }
 
+    fun showPlanReminder(planName: String) {
+        if (!hasNotificationPermission()) return
+
+        showNotification(
+            channelId = NotificationChannels.WORKOUT_REMINDERS_ID,
+            notificationId = PLAN_REMINDER_NOTIFICATION_ID_BASE + planName.hashCode(),
+            title = "Time for $planName!",
+            message = "Your scheduled workout is waiting. Let's make progress today!"
+        )
+    }
+
     private fun showNotification(
         channelId: String,
         notificationId: Int,
@@ -152,5 +163,6 @@ class NotificationHelper @Inject constructor(
         const val STREAK_ALERT_NOTIFICATION_ID = 1002
         const val ACHIEVEMENT_NOTIFICATION_ID_BASE = 2000
         const val LEVEL_UP_NOTIFICATION_ID = 3001
+        const val PLAN_REMINDER_NOTIFICATION_ID_BASE = 4000
     }
 }

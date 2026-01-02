@@ -41,4 +41,13 @@ interface WorkoutPlanDao {
 
     @Query("SELECT COUNT(*) FROM workout_plans WHERE isActive = 0 AND completedDate IS NOT NULL")
     suspend fun getCompletedPlansCount(): Int
+
+    @Query("UPDATE workout_plans SET reminderEnabled = :enabled, reminderTime = :time WHERE id = :id")
+    suspend fun updateReminder(id: String, enabled: Boolean, time: String?)
+
+    @Query("SELECT * FROM workout_plans WHERE isActive = 1 AND reminderEnabled = 1")
+    fun getPlansWithReminders(): Flow<List<WorkoutPlanEntity>>
+
+    @Query("SELECT * FROM workout_plans WHERE isActive = 1 AND reminderEnabled = 1")
+    suspend fun getPlansWithRemindersSync(): List<WorkoutPlanEntity>
 }
