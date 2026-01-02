@@ -20,22 +20,34 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.incremax.domain.model.AuthState
+import com.incremax.domain.model.AuthUser
 import com.incremax.domain.model.UserStats
+import com.incremax.domain.repository.AuthRepository
+import com.incremax.domain.repository.SyncRepository
+import com.incremax.domain.repository.SyncStatus
 import com.incremax.domain.repository.UserStatsRepository
 import com.incremax.ui.theme.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 import javax.inject.Inject
 
 data class ProfileUiState(
     val userStats: UserStats = UserStats(),
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val authState: AuthState = AuthState.Loading,
+    val syncStatus: SyncStatus = SyncStatus.IDLE,
+    val lastSyncTime: Long? = null
 )
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val userStatsRepository: UserStatsRepository
+    private val userStatsRepository: UserStatsRepository,
+    private val authRepository: AuthRepository,
+    private val syncRepository: SyncRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -48,11 +60,39 @@ class ProfileViewModel @Inject constructor(
     private fun loadData() {
         viewModelScope.launch {
             userStatsRepository.getUserStats().collect { stats ->
-                _uiState.value = ProfileUiState(
-                    userStats = stats,
-                    isLoading = false
-                )
+                _uiState.update { it.copy(userStats = stats, isLoading = false) }
             }
+        }
+
+        viewModelScope.launch {
+            authRepository.authState.collect { state ->
+                _uiState.update { it.copy(authState = state) }
+            }
+        }
+
+        viewModelScope.launch {
+            syncRepository.syncStatus.collect { status ->
+                _uiState.update { it.copy(syncStatus = status) }
+            }
+        }
+
+        viewModelScope.launch {
+            syncRepository.lastSyncTime.collect { time ->
+                _uiState.update { it.copy(lastSyncTime = time) }
+            }
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            authRepository.signOut()
+        }
+    }
+
+    fun syncNow() {
+        viewModelScope.launch {
+            val user = authRepository.currentUser ?: return@launch
+            syncRepository.syncToCloud(user.uid)
         }
     }
 }
@@ -61,6 +101,7 @@ class ProfileViewModel @Inject constructor(
 @Composable
 fun ProfileScreen(
     onNotificationSettingsClick: () -> Unit = {},
+    onSignInClick: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -84,6 +125,27 @@ fun ProfileScreen(
             // Profile Header
             item {
                 ProfileHeader(stats = uiState.userStats)
+            }
+
+            // Account Section
+            item {
+                Text(
+                    text = "Account",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
+            item {
+                AccountSection(
+                    authState = uiState.authState,
+                    syncStatus = uiState.syncStatus,
+                    lastSyncTime = uiState.lastSyncTime,
+                    onSignInClick = onSignInClick,
+                    onSignOutClick = { viewModel.signOut() },
+                    onSyncNowClick = { viewModel.syncNow() }
+                )
             }
 
             // Stats Summary
@@ -399,5 +461,223 @@ fun AboutSection() {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun AccountSection(
+    authState: AuthState,
+    syncStatus: SyncStatus,
+    lastSyncTime: Long?,
+    onSignInClick: () -> Unit,
+    onSignOutClick: () -> Unit,
+    onSyncNowClick: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        when (authState) {
+            is AuthState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+            }
+
+            is AuthState.NotAuthenticated -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Outlined.CloudOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Not signed in",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "Sign in to sync your data across devices",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = onSignInClick) {
+                        Icon(Icons.Default.Login, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Sign In")
+                    }
+                }
+            }
+
+            is AuthState.Authenticated -> {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // User info
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = (authState.user.displayName?.firstOrNull()
+                                    ?: authState.user.email?.firstOrNull()
+                                    ?: 'U').uppercase(),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = authState.user.displayName ?: "User",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = authState.user.email ?: "",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider()
+
+                    // Sync status
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = syncStatus != SyncStatus.SYNCING) { onSyncNowClick() }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            when (syncStatus) {
+                                SyncStatus.SYNCING -> Icons.Default.Sync
+                                SyncStatus.SUCCESS -> Icons.Default.CloudDone
+                                SyncStatus.ERROR -> Icons.Default.CloudOff
+                                SyncStatus.IDLE -> Icons.Outlined.Cloud
+                            },
+                            contentDescription = null,
+                            tint = when (syncStatus) {
+                                SyncStatus.SUCCESS -> MaterialTheme.colorScheme.primary
+                                SyncStatus.ERROR -> MaterialTheme.colorScheme.error
+                                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            },
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = when (syncStatus) {
+                                    SyncStatus.SYNCING -> "Syncing..."
+                                    SyncStatus.SUCCESS -> "Synced"
+                                    SyncStatus.ERROR -> "Sync failed"
+                                    SyncStatus.IDLE -> "Sync now"
+                                },
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (lastSyncTime != null) {
+                                Text(
+                                    text = "Last synced: ${formatSyncTime(lastSyncTime)}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                        if (syncStatus == SyncStatus.SYNCING) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider()
+
+                    // Sign out
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSignOutClick() }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Logout,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Sign Out",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+
+            is AuthState.Error -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Default.Error,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Error: ${authState.message}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatSyncTime(timestamp: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+
+    return when {
+        diff < 60_000 -> "Just now"
+        diff < 3600_000 -> "${diff / 60_000} min ago"
+        diff < 86400_000 -> "${diff / 3600_000} hours ago"
+        else -> SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(timestamp))
     }
 }

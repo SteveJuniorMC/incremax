@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.incremax.ui.screens.auth.SignInScreen
 
 @Composable
 fun OnboardingFlow(
@@ -83,11 +84,11 @@ fun OnboardingFlow(
                 onBack = { viewModel.navigateToStep(OnboardingStep.PLAN_RECOMMENDATION) }
             )
 
-            OnboardingStep.ACCOUNT_SUGGESTION -> AccountSuggestionScreen(
-                isLoading = uiState.isLoading,
-                onCreateAccount = { /* Future: implement account creation */ },
+            OnboardingStep.ACCOUNT_SUGGESTION -> SignInScreen(
+                onSignInComplete = { viewModel.completeOnboarding() },
                 onSkip = { viewModel.completeOnboarding() },
-                onBack = { viewModel.navigateToStep(OnboardingStep.REMINDER_SETUP) }
+                onBack = { viewModel.navigateToStep(OnboardingStep.REMINDER_SETUP) },
+                isOnboarding = true
             )
         }
     }

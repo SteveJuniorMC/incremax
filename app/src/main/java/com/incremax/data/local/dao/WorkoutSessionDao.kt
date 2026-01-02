@@ -10,6 +10,9 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions ORDER BY completedAt DESC")
     fun getAllSessions(): Flow<List<WorkoutSessionEntity>>
 
+    @Query("SELECT * FROM workout_sessions")
+    suspend fun getAllSessionsSync(): List<WorkoutSessionEntity>
+
     @Query("SELECT * FROM workout_sessions WHERE planId = :planId ORDER BY completedAt DESC")
     fun getSessionsByPlan(planId: String): Flow<List<WorkoutSessionEntity>>
 
@@ -59,4 +62,7 @@ interface WorkoutSessionDao {
 
     @Query("SELECT SUM(completedAmount) FROM workout_sessions WHERE exerciseId = :exerciseId")
     suspend fun getTotalForExercise(exerciseId: String): Long?
+
+    @Query("DELETE FROM workout_sessions")
+    suspend fun deleteAll()
 }

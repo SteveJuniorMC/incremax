@@ -9,8 +9,14 @@ interface WorkoutPlanDao {
     @Query("SELECT * FROM workout_plans")
     fun getAllPlans(): Flow<List<WorkoutPlanEntity>>
 
+    @Query("SELECT * FROM workout_plans")
+    suspend fun getAllPlansSync(): List<WorkoutPlanEntity>
+
     @Query("SELECT * FROM workout_plans WHERE isActive = 1")
     fun getActivePlans(): Flow<List<WorkoutPlanEntity>>
+
+    @Query("SELECT * FROM workout_plans WHERE isActive = 1")
+    suspend fun getActivePlansSync(): List<WorkoutPlanEntity>
 
     @Query("SELECT * FROM workout_plans WHERE isActive = 0 AND completedDate IS NOT NULL")
     fun getCompletedPlans(): Flow<List<WorkoutPlanEntity>>
@@ -50,4 +56,7 @@ interface WorkoutPlanDao {
 
     @Query("SELECT * FROM workout_plans WHERE isActive = 1 AND reminderEnabled = 1")
     suspend fun getPlansWithRemindersSync(): List<WorkoutPlanEntity>
+
+    @Query("DELETE FROM workout_plans")
+    suspend fun deleteAll()
 }

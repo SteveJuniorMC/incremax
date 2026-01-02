@@ -10,6 +10,9 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises")
     fun getAllExercises(): Flow<List<ExerciseEntity>>
 
+    @Query("SELECT * FROM exercises")
+    suspend fun getAllExercisesSync(): List<ExerciseEntity>
+
     @Query("SELECT * FROM exercises WHERE id = :id")
     suspend fun getExerciseById(id: String): ExerciseEntity?
 
@@ -34,6 +37,9 @@ interface ExerciseDao {
 
     @Query("SELECT * FROM exercise_totals")
     fun getAllExerciseTotals(): Flow<List<ExerciseTotalEntity>>
+
+    @Query("SELECT * FROM exercise_totals")
+    suspend fun getAllTotalsSync(): List<ExerciseTotalEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateExerciseTotal(total: ExerciseTotalEntity)

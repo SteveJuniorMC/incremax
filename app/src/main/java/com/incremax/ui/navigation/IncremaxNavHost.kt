@@ -34,6 +34,7 @@ import com.incremax.ui.screens.profile.ProfileScreen
 import com.incremax.ui.screens.progress.ProgressScreen
 import com.incremax.ui.screens.settings.NotificationSettingsScreen
 import com.incremax.ui.screens.workout.WorkoutScreen
+import com.incremax.ui.screens.auth.SignInScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -204,6 +205,9 @@ fun IncremaxNavHost(
                 ProfileScreen(
                     onNotificationSettingsClick = {
                         navController.navigate(NavRoutes.NotificationSettings.route)
+                    },
+                    onSignInClick = {
+                        navController.navigate(NavRoutes.SignIn.route)
                     }
                 )
             }
@@ -211,6 +215,15 @@ fun IncremaxNavHost(
             composable(NavRoutes.NotificationSettings.route) {
                 NotificationSettingsScreen(
                     onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(NavRoutes.SignIn.route) {
+                SignInScreen(
+                    onSignInComplete = { navController.popBackStack() },
+                    onSkip = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() },
+                    isOnboarding = false
                 )
             }
         }
