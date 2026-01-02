@@ -14,6 +14,7 @@ sealed class NavRoutes(val route: String) {
     object Achievements : NavRoutes("achievements")
     object Profile : NavRoutes("profile")
     object NotificationSettings : NavRoutes("notification_settings")
+    object Onboarding : NavRoutes("onboarding")
 }
 
 enum class BottomNavItem(

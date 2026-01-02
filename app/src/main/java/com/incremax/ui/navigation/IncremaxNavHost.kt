@@ -1,14 +1,20 @@
 package com.incremax.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -17,8 +23,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.incremax.domain.repository.OnboardingRepository
 import com.incremax.ui.screens.achievements.AchievementsScreen
 import com.incremax.ui.screens.home.HomeScreen
+import com.incremax.ui.screens.onboarding.OnboardingFlow
 import com.incremax.ui.screens.plans.CreatePlanScreen
 import com.incremax.ui.screens.plans.PlanDetailScreen
 import com.incremax.ui.screens.plans.PlansScreen
@@ -26,6 +34,16 @@ import com.incremax.ui.screens.profile.ProfileScreen
 import com.incremax.ui.screens.progress.ProgressScreen
 import com.incremax.ui.screens.settings.NotificationSettingsScreen
 import com.incremax.ui.screens.workout.WorkoutScreen
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+
+@HiltViewModel
+class NavHostViewModel @Inject constructor(
+    onboardingRepository: OnboardingRepository
+) : ViewModel() {
+    val hasCompletedOnboarding = onboardingRepository.hasCompletedOnboarding()
+}
 
 data class BottomNavItemData(
     val route: String,
@@ -43,10 +61,31 @@ val bottomNavItems = listOf(
 )
 
 @Composable
-fun IncremaxNavHost() {
+fun IncremaxNavHost(
+    viewModel: NavHostViewModel = hiltViewModel()
+) {
+    val hasCompletedOnboarding by viewModel.hasCompletedOnboarding.collectAsState(initial = null)
+
+    // Show loading while checking onboarding status
+    if (hasCompletedOnboarding == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    val startDestination = if (hasCompletedOnboarding == true) {
+        NavRoutes.Home.route
+    } else {
+        NavRoutes.Onboarding.route
+    }
 
     val showBottomBar = currentDestination?.route in bottomNavItems.map { it.route }
 
@@ -84,9 +123,20 @@ fun IncremaxNavHost() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = NavRoutes.Home.route,
+            startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         ) {
+            // Onboarding Flow
+            composable(NavRoutes.Onboarding.route) {
+                OnboardingFlow(
+                    onComplete = {
+                        navController.navigate(NavRoutes.Home.route) {
+                            popUpTo(NavRoutes.Onboarding.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
             composable(NavRoutes.Home.route) {
                 HomeScreen(
                     onStartWorkout = { planId ->
