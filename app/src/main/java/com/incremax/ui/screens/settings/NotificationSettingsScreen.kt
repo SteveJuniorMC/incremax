@@ -243,6 +243,53 @@ fun NotificationSettingsScreen(
                     )
                 }
             }
+
+            // Test Notifications Section
+            Text(
+                text = "Test Notifications",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Tap to send test notifications immediately",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    OutlinedButton(
+                        onClick = { viewModel.testWorkoutReminder() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Test Workout Reminder")
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.testStreakAlert() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Test Streak Alert")
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.testAchievementNotification() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Test Achievement Notification")
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.testLevelUpNotification() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Test Level Up Notification")
+                    }
+                }
+            }
         }
     }
 }

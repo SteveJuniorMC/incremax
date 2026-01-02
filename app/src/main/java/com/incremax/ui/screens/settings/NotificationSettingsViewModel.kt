@@ -105,4 +105,20 @@ class NotificationSettingsViewModel @Inject constructor(
             notificationSettingsRepository.updateAchievementNotificationsEnabled(enabled)
         }
     }
+
+    fun testWorkoutReminder() {
+        notificationHelper.showWorkoutReminder(3)
+    }
+
+    fun testStreakAlert() {
+        notificationHelper.showStreakAlert(currentStreak = 5, hasWorkedOutToday = false)
+    }
+
+    fun testAchievementNotification() {
+        notificationHelper.showAchievementUnlocked("First Steps", 100)
+    }
+
+    fun testLevelUpNotification() {
+        notificationHelper.showLevelUp(5, "Dedicated")
+    }
 }
