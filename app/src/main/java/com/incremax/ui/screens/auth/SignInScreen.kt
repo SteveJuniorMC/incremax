@@ -170,8 +170,8 @@ fun SignInScreen(
                                 IntentSenderRequest.Builder(result.pendingIntent.intentSender).build()
                             )
                         }
-                        .addOnFailureListener {
-                            // Handle failure - maybe show email form only
+                        .addOnFailureListener { e ->
+                            viewModel.setError("Google Sign-In failed: ${e.localizedMessage ?: "Unknown error"}")
                         }
                 },
                 modifier = Modifier
