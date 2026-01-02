@@ -70,11 +70,19 @@ data class UserStats(
 }
 
 object XpRewards {
-    // Fixed XP per workout - no bonuses for extra reps to discourage fudging
-    const val WORKOUT_XP = 75
+    const val BASE_WORKOUT_XP = 50
+    const val STREAK_BONUS_PER_DAY = 5
+    const val MAX_STREAK_BONUS = 50
+    const val PERFECT_WORKOUT_BONUS = 25
     const val PLAN_COMPLETION_BONUS = 200
+    const val ACHIEVEMENT_XP_MULTIPLIER = 1
 
-    fun calculateWorkoutXp(): Int {
-        return WORKOUT_XP
+    fun calculateWorkoutXp(
+        streakDays: Int,
+        isPerfect: Boolean = false
+    ): Int {
+        val streakBonus = minOf(streakDays * STREAK_BONUS_PER_DAY, MAX_STREAK_BONUS)
+        val perfectBonus = if (isPerfect) PERFECT_WORKOUT_BONUS else 0
+        return BASE_WORKOUT_XP + streakBonus + perfectBonus
     }
 }
