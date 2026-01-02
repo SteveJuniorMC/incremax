@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Brand Colors -->
+    <color name="primary">#FF6B35</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="primary_container">#FFDBC9</color>
+    <color name="on_primary_container">#2B0E00</color>
+
+    <!-- Secondary Colors -->
+    <color name="secondary">#5C5F5E</color>
+    <color name="on_secondary">#FFFFFF</color>
+    <color name="secondary_container">#E1E3E1</color>
+    <color name="on_secondary_container">#1A1C1B</color>
+
+    <!-- Tertiary Colors (for achievements/rewards) -->
+    <color name="tertiary">#FFB800</color>
+    <color name="on_tertiary">#3F2E00</color>
+    <color name="tertiary_container">#FFE08C</color>
+    <color name="on_tertiary_container">#241A00</color>
+
+    <!-- Background -->
+    <color name="background">#FFFBFF</color>
+    <color name="on_background">#1A1C1B</color>
+    <color name="surface">#FFFBFF</color>
+    <color name="on_surface">#1A1C1B</color>
+
+    <!-- Status Colors -->
+    <color name="streak_fire">#FF6B35</color>
+    <color name="xp_gold">#FFB800</color>
+    <color name="success">#4CAF50</color>
+    <color name="warning">#FF9800</color>
+    <color name="error">#F44336</color>
+</resources>

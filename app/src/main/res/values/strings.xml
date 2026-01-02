@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Incremax</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_plans">Plans</string>
+    <string name="nav_progress">Progress</string>
+    <string name="nav_achievements">Achievements</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Home Screen -->
+    <string name="current_streak">Current Streak</string>
+    <string name="days">days</string>
+    <string name="todays_workout">Today\'s Workout</string>
+    <string name="start_workout">Start Workout</string>
+    <string name="level">Level %1$d</string>
+    <string name="xp_progress">%1$d / %2$d XP</string>
+
+    <!-- Plans Screen -->
+    <string name="my_plans">My Plans</string>
+    <string name="preset_plans">Preset Plans</string>
+    <string name="create_plan">Create Plan</string>
+    <string name="active">Active</string>
+    <string name="completed">Completed</string>
+
+    <!-- Workout Screen -->
+    <string name="rest_time">Rest Time</string>
+    <string name="skip">Skip</string>
+    <string name="complete">Complete</string>
+    <string name="workout_complete">Workout Complete!</string>
+    <string name="xp_earned">+%1$d XP</string>
+
+    <!-- Achievements -->
+    <string name="achievements">Achievements</string>
+    <string name="unlocked">Unlocked</string>
+    <string name="locked">Locked</string>
+
+    <!-- Profile -->
+    <string name="settings">Settings</string>
+    <string name="notifications">Notifications</string>
+    <string name="theme">Theme</string>
+    <string name="export_data">Export Data</string>
+    <string name="about">About</string>
+</resources>
