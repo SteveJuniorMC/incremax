@@ -24,6 +24,7 @@ import com.incremax.ui.screens.plans.PlanDetailScreen
 import com.incremax.ui.screens.plans.PlansScreen
 import com.incremax.ui.screens.profile.ProfileScreen
 import com.incremax.ui.screens.progress.ProgressScreen
+import com.incremax.ui.screens.settings.NotificationSettingsScreen
 import com.incremax.ui.screens.workout.WorkoutScreen
 
 data class BottomNavItemData(
@@ -150,7 +151,17 @@ fun IncremaxNavHost() {
             }
 
             composable(NavRoutes.Profile.route) {
-                ProfileScreen()
+                ProfileScreen(
+                    onNotificationSettingsClick = {
+                        navController.navigate(NavRoutes.NotificationSettings.route)
+                    }
+                )
+            }
+
+            composable(NavRoutes.NotificationSettings.route) {
+                NotificationSettingsScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
         }
     }

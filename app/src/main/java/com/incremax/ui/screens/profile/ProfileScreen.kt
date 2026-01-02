@@ -1,6 +1,7 @@
 package com.incremax.ui.screens.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -59,6 +60,7 @@ class ProfileViewModel @Inject constructor(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    onNotificationSettingsClick: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -100,7 +102,7 @@ fun ProfileScreen(
             }
 
             item {
-                SettingsSection()
+                SettingsSection(onNotificationSettingsClick = onNotificationSettingsClick)
             }
 
             // About Section
@@ -282,13 +284,16 @@ fun StatItem(
 }
 
 @Composable
-fun SettingsSection() {
+fun SettingsSection(
+    onNotificationSettingsClick: () -> Unit = {}
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth()) {
             SettingsItem(
                 icon = Icons.Outlined.Notifications,
                 title = "Notifications",
-                subtitle = "Workout reminders"
+                subtitle = "Workout reminders",
+                onClick = onNotificationSettingsClick
             )
             HorizontalDivider()
             SettingsItem(
@@ -310,11 +315,13 @@ fun SettingsSection() {
 fun SettingsItem(
     icon: ImageVector,
     title: String,
-    subtitle: String
+    subtitle: String,
+    onClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

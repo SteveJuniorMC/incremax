@@ -7,6 +7,7 @@ import com.incremax.data.local.entity.AchievementEntity
 import com.incremax.data.local.entity.UserStatsEntity
 import com.incremax.domain.model.*
 import com.incremax.domain.repository.UserStatsRepository
+import com.incremax.notification.AchievementNotificationService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
@@ -16,7 +17,8 @@ import javax.inject.Inject
 class UserStatsRepositoryImpl @Inject constructor(
     private val userStatsDao: UserStatsDao,
     private val workoutSessionDao: WorkoutSessionDao,
-    private val workoutPlanDao: WorkoutPlanDao
+    private val workoutPlanDao: WorkoutPlanDao,
+    private val achievementNotificationService: AchievementNotificationService
 ) : UserStatsRepository {
 
     override fun getUserStats(): Flow<UserStats> {
@@ -42,12 +44,20 @@ class UserStatsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun addXp(xp: Int) {
+        val oldStats = userStatsDao.getUserStatsSync()
+        val oldLevel = oldStats?.level ?: 1
+
         userStatsDao.addXp(xp)
-        // Check for level up
+
         val stats = userStatsDao.getUserStatsSync() ?: return
         val newLevel = UserStats.calculateLevel(stats.totalXp)
         if (newLevel > stats.level) {
             userStatsDao.updateLevel(newLevel)
+        }
+
+        if (newLevel > oldLevel) {
+            val levelTitle = UserStats.getLevelTitle(newLevel)
+            achievementNotificationService.onLevelUp(newLevel, levelTitle)
         }
     }
 
@@ -107,8 +117,9 @@ class UserStatsRepositoryImpl @Inject constructor(
             userStatsDao.insertAchievement(
                 AchievementEntity(id = id, unlockedAt = LocalDateTime.now())
             )
-            // Award XP for achievement
+            // Award XP for achievement and send notification
             PresetAchievements.all.find { it.id == id }?.let { achievement ->
+                achievementNotificationService.onAchievementUnlocked(achievement)
                 addXp(achievement.xpReward)
             }
         }
