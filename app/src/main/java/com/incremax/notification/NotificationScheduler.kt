@@ -102,6 +102,18 @@ class NotificationScheduler @Inject constructor(
         workManager.cancelUniqueWork(STREAK_ALERT_WORK_NAME)
     }
 
+    fun scheduleWorkoutReminder(time: LocalTime) {
+        // Legacy global reminder - schedules all per-plan reminders
+        kotlinx.coroutines.runBlocking {
+            scheduleAllPlanReminders()
+        }
+    }
+
+    fun cancelWorkoutReminder() {
+        // Cancel all per-plan reminders
+        workManager.cancelAllWorkByTag(PLAN_REMINDER_TAG)
+    }
+
     fun updateSchedulesFromSettings(settings: NotificationSettings) {
         if (settings.workoutRemindersEnabled) {
             scheduleWorkoutReminder(settings.workoutReminderTime)

@@ -257,6 +257,18 @@ fun TodayWorkoutCard(
         label = "cardColor"
     )
 
+    val contentColor = if (workout.isCompleted) {
+        MaterialTheme.colorScheme.onTertiaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    val accentColor = if (workout.isCompleted) {
+        MaterialTheme.colorScheme.onTertiaryContainer
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -274,17 +286,18 @@ fun TodayWorkoutCard(
                 Text(
                     text = workout.exercise.name,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    color = contentColor
                 )
                 Text(
                     text = "${workout.targetAmount} ${workout.exercise.unit}",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    color = accentColor
                 )
                 Text(
                     text = workout.plan.name,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = contentColor.copy(alpha = 0.6f)
                 )
             }
             if (workout.isCompleted) {
