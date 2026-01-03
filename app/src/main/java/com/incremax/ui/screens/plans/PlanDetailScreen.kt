@@ -1,5 +1,9 @@
 package com.incremax.ui.screens.plans
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +21,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.incremax.domain.model.*
 import com.incremax.domain.repository.*
+import com.incremax.notification.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -41,7 +46,8 @@ class PlanDetailViewModel @Inject constructor(
     private val workoutPlanRepository: WorkoutPlanRepository,
     private val exerciseRepository: ExerciseRepository,
     private val notificationScheduler: NotificationScheduler,
-    private val notificationSettingsRepository: NotificationSettingsRepository
+    private val notificationSettingsRepository: NotificationSettingsRepository,
+    private val notificationHelper: NotificationHelper
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlanDetailUiState())
@@ -105,6 +111,22 @@ class PlanDetailViewModel @Inject constructor(
     fun hideTimePicker() {
         _uiState.update { it.copy(showReminderTimePicker = false) }
     }
+
+    fun hasNotificationPermission(): Boolean = notificationHelper.hasNotificationPermission()
+
+    fun onPermissionGranted() {
+        val plan = _uiState.value.plan ?: return
+        // Show time picker after permission is granted
+        if (plan.reminderTime == null) {
+            _uiState.update { it.copy(showReminderTimePicker = true) }
+        } else {
+            viewModelScope.launch {
+                notificationSettingsRepository.updateWorkoutRemindersEnabled(true)
+                workoutPlanRepository.updateReminder(plan.id, true, plan.reminderTime)
+                notificationScheduler.scheduleAllPlanReminders()
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -117,9 +139,44 @@ fun PlanDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val timeFormatter = DateTimeFormatter.ofPattern("h:mm a")
+    var showPermissionRationale by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.onPermissionGranted()
+        }
+    }
 
     LaunchedEffect(planId) {
         viewModel.loadPlan(planId)
+    }
+
+    // Permission rationale dialog
+    if (showPermissionRationale) {
+        AlertDialog(
+            onDismissRequest = { showPermissionRationale = false },
+            title = { Text("Enable Notifications") },
+            text = { Text("Notifications help you stay on track with your workouts. Would you like to enable them?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionRationale = false
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        viewModel.onPermissionGranted()
+                    }
+                }) {
+                    Text("Enable")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionRationale = false }) {
+                    Text("Not Now")
+                }
+            }
+        )
     }
 
     // Time Picker Dialog
@@ -379,7 +436,20 @@ fun PlanDetailScreen(
                                     }
                                     Switch(
                                         checked = plan.reminderEnabled,
-                                        onCheckedChange = { viewModel.toggleReminder(it) }
+                                        onCheckedChange = { enabled ->
+                                            if (enabled) {
+                                                // Check permission before enabling
+                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                                    !viewModel.hasNotificationPermission()
+                                                ) {
+                                                    showPermissionRationale = true
+                                                } else {
+                                                    viewModel.toggleReminder(true)
+                                                }
+                                            } else {
+                                                viewModel.toggleReminder(false)
+                                            }
+                                        }
                                     )
                                 }
 
