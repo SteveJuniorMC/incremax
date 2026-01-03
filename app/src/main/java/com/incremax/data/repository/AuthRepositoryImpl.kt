@@ -44,7 +44,7 @@ class AuthRepositoryImpl @Inject constructor(
                 AuthResult.Success(it.toAuthUser())
             } ?: AuthResult.Error("Sign-in failed: No user returned")
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Google sign-in failed", e)
+            AuthResult.Error("${e.javaClass.simpleName}: ${e.message}", e)
         }
     }
 

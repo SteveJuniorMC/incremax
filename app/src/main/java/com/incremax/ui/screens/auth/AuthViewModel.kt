@@ -75,9 +75,11 @@ class AuthViewModel @Inject constructor(
     fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            when (val result = authRepository.signInWithGoogle(idToken)) {
+            val result = authRepository.signInWithGoogle(idToken)
+            when (result) {
                 is AuthResult.Success -> {
-                    // Auth state listener will handle the rest
+                    // Auth state listener will trigger checkDataConflict
+                    // Keep loading until that completes
                 }
                 is AuthResult.Error -> {
                     _uiState.update { it.copy(isLoading = false, error = result.message) }
