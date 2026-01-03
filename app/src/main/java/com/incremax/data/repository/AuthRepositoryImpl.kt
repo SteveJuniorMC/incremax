@@ -43,13 +43,15 @@ class AuthRepositoryImpl @Inject constructor(
             val credential = GoogleAuthProvider.getCredential(idToken, null)
             suspendCancellableCoroutine { continuation ->
                 firebaseAuth.signInWithCredential(credential)
-                    .addOnSuccessListener { result ->
-                        result.user?.let {
-                            continuation.resume(AuthResult.Success(it.toAuthUser())) {}
-                        } ?: continuation.resume(AuthResult.Error("No user returned")) {}
-                    }
-                    .addOnFailureListener { e ->
-                        continuation.resume(AuthResult.Error("${e.javaClass.simpleName}: ${e.message}", e)) {}
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            task.result.user?.let {
+                                continuation.resume(AuthResult.Success(it.toAuthUser())) {}
+                            } ?: continuation.resume(AuthResult.Error("No user returned")) {}
+                        } else {
+                            val e = task.exception
+                            continuation.resume(AuthResult.Error("${e?.javaClass?.simpleName}: ${e?.message}", e)) {}
+                        }
                     }
             }
         } catch (e: Exception) {
@@ -59,10 +61,19 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun signInWithEmail(email: String, password: String): AuthResult {
         return try {
-            val result = firebaseAuth.signInWithEmailAndPassword(email, password).await()
-            result.user?.let {
-                AuthResult.Success(it.toAuthUser())
-            } ?: AuthResult.Error("Sign-in failed")
+            suspendCancellableCoroutine { continuation ->
+                firebaseAuth.signInWithEmailAndPassword(email, password)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            task.result.user?.let {
+                                continuation.resume(AuthResult.Success(it.toAuthUser())) {}
+                            } ?: continuation.resume(AuthResult.Error("Sign-in failed")) {}
+                        } else {
+                            val e = task.exception
+                            continuation.resume(AuthResult.Error("${e?.javaClass?.simpleName}: ${e?.message}", e)) {}
+                        }
+                    }
+            }
         } catch (e: Exception) {
             AuthResult.Error(e.message ?: "Email sign-in failed", e)
         }
@@ -70,10 +81,19 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun signUpWithEmail(email: String, password: String): AuthResult {
         return try {
-            val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
-            result.user?.let {
-                AuthResult.Success(it.toAuthUser())
-            } ?: AuthResult.Error("Sign-up failed")
+            suspendCancellableCoroutine { continuation ->
+                firebaseAuth.createUserWithEmailAndPassword(email, password)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            task.result.user?.let {
+                                continuation.resume(AuthResult.Success(it.toAuthUser())) {}
+                            } ?: continuation.resume(AuthResult.Error("Sign-up failed")) {}
+                        } else {
+                            val e = task.exception
+                            continuation.resume(AuthResult.Error("${e?.javaClass?.simpleName}: ${e?.message}", e)) {}
+                        }
+                    }
+            }
         } catch (e: Exception) {
             AuthResult.Error(e.message ?: "Email sign-up failed", e)
         }
