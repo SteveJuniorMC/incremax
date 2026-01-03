@@ -1,6 +1,7 @@
 package com.incremax.ui.screens.auth
 
 import android.app.Activity
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -47,6 +48,12 @@ fun SignInScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var passwordVisible by remember { mutableStateOf(false) }
+
+    // Log when screen loads
+    LaunchedEffect(Unit) {
+        Log.d("SignInScreen", "========== SIGN IN SCREEN LOADED ==========")
+        Log.d("SignInScreen", "uiState: isLoading=${uiState.isLoading}, error=${uiState.error}, authState=${uiState.authState}")
+    }
 
     // Google Sign-In
     val oneTapClient = remember { Identity.getSignInClient(context) }
@@ -168,13 +175,16 @@ fun SignInScreen(
             // Google Sign-In Button
             OutlinedButton(
                 onClick = {
+                    Log.d("SignInScreen", "Google sign-in button clicked")
                     oneTapClient.beginSignIn(signInRequest)
                         .addOnSuccessListener { result ->
+                            Log.d("SignInScreen", "Google beginSignIn success, launching intent")
                             googleSignInLauncher.launch(
                                 IntentSenderRequest.Builder(result.pendingIntent.intentSender).build()
                             )
                         }
                         .addOnFailureListener { e ->
+                            Log.e("SignInScreen", "Google beginSignIn FAILED: ${e.javaClass.simpleName}: ${e.message}", e)
                             val errorMsg = "${e.javaClass.simpleName}: ${e.message}"
                             viewModel.setError(errorMsg)
                         }
@@ -297,7 +307,10 @@ fun SignInScreen(
 
             // Sign In / Sign Up button
             Button(
-                onClick = { viewModel.signInWithEmail() },
+                onClick = {
+                    Log.d("SignInScreen", "Sign In/Up button clicked, isSignUpMode=${uiState.isSignUpMode}")
+                    viewModel.signInWithEmail()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
