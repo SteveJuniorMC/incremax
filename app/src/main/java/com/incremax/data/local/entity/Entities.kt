@@ -58,7 +58,8 @@ data class WorkoutPlanEntity(
     val isPreset: Boolean,
     val completedDate: LocalDate?,
     val reminderEnabled: Boolean = false,
-    val reminderTime: LocalTime? = null
+    val reminderTime: LocalTime? = null,
+    val difficulty: DifficultyLevel = DifficultyLevel.BEGINNER
 ) {
     fun toDomain() = WorkoutPlan(
         id = id,
@@ -74,7 +75,8 @@ data class WorkoutPlanEntity(
         isPreset = isPreset,
         completedDate = completedDate,
         reminderEnabled = reminderEnabled,
-        reminderTime = reminderTime
+        reminderTime = reminderTime,
+        difficulty = difficulty
     )
 
     companion object {
@@ -92,7 +94,8 @@ data class WorkoutPlanEntity(
             isPreset = plan.isPreset,
             completedDate = plan.completedDate,
             reminderEnabled = plan.reminderEnabled,
-            reminderTime = plan.reminderTime
+            reminderTime = plan.reminderTime,
+            difficulty = plan.difficulty
         )
     }
 }

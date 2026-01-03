@@ -1,6 +1,5 @@
 package com.incremax.ui.screens.onboarding
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,8 +7,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,18 +22,15 @@ import com.incremax.ui.screens.onboarding.components.PlanSelectionCard
 @Composable
 fun PlanRecommendationScreen(
     recommendedPlans: List<WorkoutPlan>,
-    otherPlans: List<WorkoutPlan>,
     selectedPlanIds: Set<String>,
-    goalName: String,
+    levelName: String,
     onTogglePlan: (String) -> Unit,
     onContinue: () -> Unit,
     onBack: () -> Unit
 ) {
-    var showOtherPlans by remember { mutableStateOf(false) }
     var showConfirmDialog by remember { mutableStateOf(false) }
     val selectedCount = selectedPlanIds.size
-    val allPlans = recommendedPlans + otherPlans
-    val selectedPlans = allPlans.filter { it.id in selectedPlanIds }
+    val selectedPlans = recommendedPlans.filter { it.id in selectedPlanIds }
 
     // Confirmation dialog
     if (showConfirmDialog) {
@@ -78,7 +72,7 @@ fun PlanRecommendationScreen(
         ) {
             item {
                 Text(
-                    text = "Choose your challenges",
+                    text = "$levelName Challenges",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
@@ -88,7 +82,7 @@ fun PlanRecommendationScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Based on your goal: $goalName",
+                    text = "Select which challenges you'd like to start",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -105,37 +99,6 @@ fun PlanRecommendationScreen(
                     isSelected = plan.id in selectedPlanIds,
                     onToggle = { onTogglePlan(plan.id) }
                 )
-            }
-
-            // Other Plans Section
-            if (otherPlans.isNotEmpty()) {
-                item {
-                    TextButton(
-                        onClick = { showOtherPlans = !showOtherPlans },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = if (showOtherPlans) "Hide other challenges" else "Show more challenges",
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            if (showOtherPlans) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                if (showOtherPlans) {
-                    items(otherPlans) { plan ->
-                        PlanSelectionCard(
-                            plan = plan,
-                            isSelected = plan.id in selectedPlanIds,
-                            onToggle = { onTogglePlan(plan.id) }
-                        )
-                    }
-                }
             }
 
             item {

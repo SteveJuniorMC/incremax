@@ -10,6 +10,12 @@ enum class IncrementFrequency {
     MONTHLY
 }
 
+enum class DifficultyLevel {
+    BEGINNER,
+    INTERMEDIATE,
+    ADVANCED
+}
+
 data class WorkoutPlan(
     val id: String,
     val name: String,
@@ -24,7 +30,8 @@ data class WorkoutPlan(
     val isPreset: Boolean = false,
     val completedDate: LocalDate? = null,
     val reminderEnabled: Boolean = false,
-    val reminderTime: LocalTime? = null
+    val reminderTime: LocalTime? = null,
+    val difficulty: DifficultyLevel = DifficultyLevel.BEGINNER
 ) {
     fun getCurrentTarget(currentDate: LocalDate): Int {
         val daysSinceStart = java.time.temporal.ChronoUnit.DAYS.between(startDate, currentDate).toInt()
@@ -63,72 +70,151 @@ data class WorkoutPlan(
 }
 
 object PresetPlans {
-    val pushUp100Challenge = WorkoutPlan(
-        id = "preset_pushup_100",
-        name = "100 Push-up Challenge",
-        description = "Start with 10 push-ups and work your way up to 100 daily",
+    // ============== BEGINNER CHALLENGES ==============
+    // Easy entry point - start embarrassingly small
+
+    val firstPushUps = WorkoutPlan(
+        id = "preset_beginner_pushups",
+        name = "First Push-ups",
+        description = "Your push-up journey starts here",
         exerciseId = "push_ups",
-        startingAmount = 10,
-        targetAmount = 100,
+        startingAmount = 1,
+        targetAmount = 20,
+        incrementAmount = 1,
+        incrementFrequency = IncrementFrequency.WEEKLY,
+        startDate = LocalDate.now(),
+        isPreset = true,
+        difficulty = DifficultyLevel.BEGINNER
+    )
+
+    val squatStarter = WorkoutPlan(
+        id = "preset_beginner_squats",
+        name = "Squat Starter",
+        description = "Build a foundation for strong legs",
+        exerciseId = "squats",
+        startingAmount = 5,
+        targetAmount = 30,
         incrementAmount = 2,
         incrementFrequency = IncrementFrequency.WEEKLY,
         startDate = LocalDate.now(),
-        isPreset = true
+        isPreset = true,
+        difficulty = DifficultyLevel.BEGINNER
     )
 
-    val squatMaster = WorkoutPlan(
-        id = "preset_squat_master",
-        name = "Squat Master",
-        description = "Build leg strength with progressive squats",
-        exerciseId = "squats",
-        startingAmount = 15,
-        targetAmount = 100,
-        incrementAmount = 5,
-        incrementFrequency = IncrementFrequency.WEEKLY,
-        startDate = LocalDate.now(),
-        isPreset = true
-    )
-
-    val plankChallenge = WorkoutPlan(
-        id = "preset_plank",
-        name = "Plank Challenge",
-        description = "Hold planks longer each week - from 30s to 5 minutes",
-        exerciseId = "plank",
-        startingAmount = 30,
-        targetAmount = 300,
-        incrementAmount = 15,
-        incrementFrequency = IncrementFrequency.WEEKLY,
-        startDate = LocalDate.now(),
-        isPreset = true
-    )
-
-    val couchTo5K = WorkoutPlan(
-        id = "preset_couch_5k",
-        name = "Couch to 5K",
-        description = "Start walking, end up running 5 kilometers",
-        exerciseId = "running",
-        startingAmount = 500,
-        targetAmount = 5000,
-        incrementAmount = 250,
-        incrementFrequency = IncrementFrequency.WEEKLY,
-        startDate = LocalDate.now(),
-        isPreset = true
-    )
-
-    val sitUpSurge = WorkoutPlan(
-        id = "preset_situp_surge",
-        name = "Sit-up Surge",
-        description = "Core strength builder - reach 75 daily sit-ups",
+    val coreFoundations = WorkoutPlan(
+        id = "preset_beginner_situps",
+        name = "Core Foundations",
+        description = "Gentle core strengthening",
         exerciseId = "sit_ups",
-        startingAmount = 10,
+        startingAmount = 3,
+        targetAmount = 25,
+        incrementAmount = 2,
+        incrementFrequency = IncrementFrequency.WEEKLY,
+        startDate = LocalDate.now(),
+        isPreset = true,
+        difficulty = DifficultyLevel.BEGINNER
+    )
+
+    // ============== INTERMEDIATE CHALLENGES ==============
+    // For those with some fitness base
+
+    val pushUpBuilder = WorkoutPlan(
+        id = "preset_intermediate_pushups",
+        name = "Push-up Builder",
+        description = "Take your push-ups to the next level",
+        exerciseId = "push_ups",
+        startingAmount = 15,
+        targetAmount = 50,
+        incrementAmount = 3,
+        incrementFrequency = IncrementFrequency.WEEKLY,
+        startDate = LocalDate.now(),
+        isPreset = true,
+        difficulty = DifficultyLevel.INTERMEDIATE
+    )
+
+    val squatStrength = WorkoutPlan(
+        id = "preset_intermediate_squats",
+        name = "Squat Strength",
+        description = "Build serious leg power",
+        exerciseId = "squats",
+        startingAmount = 25,
         targetAmount = 75,
         incrementAmount = 5,
         incrementFrequency = IncrementFrequency.WEEKLY,
         startDate = LocalDate.now(),
-        isPreset = true
+        isPreset = true,
+        difficulty = DifficultyLevel.INTERMEDIATE
     )
 
-    val all = listOf(
-        pushUp100Challenge, squatMaster, plankChallenge, couchTo5K, sitUpSurge
+    val corePower = WorkoutPlan(
+        id = "preset_intermediate_situps",
+        name = "Core Power",
+        description = "Strengthen your entire core",
+        exerciseId = "sit_ups",
+        startingAmount = 20,
+        targetAmount = 60,
+        incrementAmount = 4,
+        incrementFrequency = IncrementFrequency.WEEKLY,
+        startDate = LocalDate.now(),
+        isPreset = true,
+        difficulty = DifficultyLevel.INTERMEDIATE
     )
+
+    // ============== ADVANCED CHALLENGES ==============
+    // For fit individuals pushing their limits
+
+    val pushUp100Challenge = WorkoutPlan(
+        id = "preset_advanced_pushups",
+        name = "100 Push-up Challenge",
+        description = "The ultimate push-up goal",
+        exerciseId = "push_ups",
+        startingAmount = 30,
+        targetAmount = 100,
+        incrementAmount = 5,
+        incrementFrequency = IncrementFrequency.WEEKLY,
+        startDate = LocalDate.now(),
+        isPreset = true,
+        difficulty = DifficultyLevel.ADVANCED
+    )
+
+    val squatMaster = WorkoutPlan(
+        id = "preset_advanced_squats",
+        name = "Squat Master",
+        description = "Achieve legendary leg strength",
+        exerciseId = "squats",
+        startingAmount = 50,
+        targetAmount = 150,
+        incrementAmount = 10,
+        incrementFrequency = IncrementFrequency.WEEKLY,
+        startDate = LocalDate.now(),
+        isPreset = true,
+        difficulty = DifficultyLevel.ADVANCED
+    )
+
+    val ironCore = WorkoutPlan(
+        id = "preset_advanced_situps",
+        name = "Iron Core",
+        description = "Build an unbreakable core",
+        exerciseId = "sit_ups",
+        startingAmount = 40,
+        targetAmount = 100,
+        incrementAmount = 5,
+        incrementFrequency = IncrementFrequency.WEEKLY,
+        startDate = LocalDate.now(),
+        isPreset = true,
+        difficulty = DifficultyLevel.ADVANCED
+    )
+
+    // Grouped by difficulty
+    val beginner = listOf(firstPushUps, squatStarter, coreFoundations)
+    val intermediate = listOf(pushUpBuilder, squatStrength, corePower)
+    val advanced = listOf(pushUp100Challenge, squatMaster, ironCore)
+
+    val all = beginner + intermediate + advanced
+
+    fun forDifficulty(level: DifficultyLevel): List<WorkoutPlan> = when (level) {
+        DifficultyLevel.BEGINNER -> beginner
+        DifficultyLevel.INTERMEDIATE -> intermediate
+        DifficultyLevel.ADVANCED -> advanced
+    }
 }

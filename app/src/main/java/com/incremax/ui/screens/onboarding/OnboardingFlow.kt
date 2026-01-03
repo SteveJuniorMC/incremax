@@ -49,25 +49,24 @@ fun OnboardingFlow(
     ) { step ->
         when (step) {
             OnboardingStep.WELCOME -> WelcomeScreen(
-                onContinue = { viewModel.navigateToStep(OnboardingStep.GOAL_SELECTION) },
+                onContinue = { viewModel.navigateToStep(OnboardingStep.FITNESS_LEVEL) },
                 onSkip = { viewModel.skipOnboarding() }
             )
 
-            OnboardingStep.GOAL_SELECTION -> GoalSelectionScreen(
-                selectedGoal = uiState.selectedGoal,
-                onGoalSelected = { viewModel.selectGoal(it) },
+            OnboardingStep.FITNESS_LEVEL -> FitnessLevelScreen(
+                selectedLevel = uiState.selectedLevel,
+                onLevelSelected = { viewModel.selectFitnessLevel(it) },
                 onContinue = { viewModel.navigateToStep(OnboardingStep.PLAN_RECOMMENDATION) },
                 onBack = { viewModel.navigateToStep(OnboardingStep.WELCOME) }
             )
 
             OnboardingStep.PLAN_RECOMMENDATION -> PlanRecommendationScreen(
                 recommendedPlans = uiState.recommendedPlans,
-                otherPlans = uiState.otherPlans,
                 selectedPlanIds = uiState.selectedPlanIds,
-                goalName = uiState.selectedGoal?.displayName ?: "",
+                levelName = uiState.selectedLevel?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "",
                 onTogglePlan = { viewModel.togglePlanSelection(it) },
                 onContinue = { viewModel.navigateToStep(OnboardingStep.REMINDER_SETUP) },
-                onBack = { viewModel.navigateToStep(OnboardingStep.GOAL_SELECTION) }
+                onBack = { viewModel.navigateToStep(OnboardingStep.FITNESS_LEVEL) }
             )
 
             OnboardingStep.REMINDER_SETUP -> ReminderSetupScreen(

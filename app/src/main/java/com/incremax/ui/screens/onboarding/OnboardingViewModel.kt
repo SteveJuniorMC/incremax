@@ -2,9 +2,8 @@ package com.incremax.ui.screens.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.incremax.domain.model.FitnessGoal
+import com.incremax.domain.model.DifficultyLevel
 import com.incremax.domain.model.PresetPlans
-import com.incremax.domain.model.WorkoutPlan
 import com.incremax.domain.repository.OnboardingRepository
 import com.incremax.domain.repository.WorkoutPlanRepository
 import com.incremax.notification.NotificationScheduler
@@ -30,37 +29,15 @@ class OnboardingViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
-    fun selectGoal(goal: FitnessGoal) {
-        val (recommended, other) = getPlansForGoal(goal)
+    fun selectFitnessLevel(level: DifficultyLevel) {
+        val plans = PresetPlans.forDifficulty(level)
         _uiState.update {
             it.copy(
-                selectedGoal = goal,
-                recommendedPlans = recommended,
-                otherPlans = other,
-                selectedPlanIds = recommended.map { plan -> plan.id }.toSet()
+                selectedLevel = level,
+                recommendedPlans = plans,
+                selectedPlanIds = plans.map { plan -> plan.id }.toSet()
             )
         }
-    }
-
-    private fun getPlansForGoal(goal: FitnessGoal): Pair<List<WorkoutPlan>, List<WorkoutPlan>> {
-        val allPlans = PresetPlans.all
-        val recommended = when (goal) {
-            FitnessGoal.STRENGTH -> listOf(
-                PresetPlans.pushUp100Challenge,
-                PresetPlans.squatMaster,
-                PresetPlans.sitUpSurge
-            )
-            FitnessGoal.ENDURANCE -> listOf(
-                PresetPlans.couchTo5K,
-                PresetPlans.plankChallenge
-            )
-            FitnessGoal.FLEXIBILITY -> listOf(
-                PresetPlans.plankChallenge
-            )
-            FitnessGoal.GENERAL_FITNESS -> allPlans.take(3)
-        }
-        val other = allPlans - recommended.toSet()
-        return recommended to other
     }
 
     fun togglePlanSelection(planId: String) {
@@ -96,11 +73,6 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            // Save selected goal
-            _uiState.value.selectedGoal?.let { goal ->
-                onboardingRepository.setSelectedGoal(goal)
-            }
-
             // Only insert plans once, and skip if user already has plans (e.g., from cloud sync)
             if (!plansInserted) {
                 plansInserted = true
@@ -114,8 +86,9 @@ class OnboardingViewModel @Inject constructor(
                         _uiState.value.reminderTime
                     } else null
 
-                    val allPlans = _uiState.value.recommendedPlans + _uiState.value.otherPlans
-                    val selectedPlans = allPlans.filter { it.id in _uiState.value.selectedPlanIds }
+                    val selectedPlans = _uiState.value.recommendedPlans.filter {
+                        it.id in _uiState.value.selectedPlanIds
+                    }
 
                     selectedPlans.forEach { presetPlan ->
                         val newPlan = presetPlan.copy(

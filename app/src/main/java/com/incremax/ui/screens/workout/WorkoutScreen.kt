@@ -20,6 +20,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.incremax.domain.model.*
 import com.incremax.domain.repository.*
+import com.incremax.ui.components.ChallengeCompleteScreen
 import com.incremax.ui.components.RewardScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -39,6 +40,8 @@ data class WorkoutUiState(
     val isCompleted: Boolean = false,
     val xpEarned: Int = 0,
     val elapsedSeconds: Long = 0,
+    val showChallengeComplete: Boolean = false,
+    val completedPlan: WorkoutPlan? = null,
     val showRewardScreen: Boolean = false,
     val totalXpBefore: Int = 0,
     val previousLevel: Int = 1,
@@ -169,8 +172,11 @@ class WorkoutViewModel @Inject constructor(
             // Check achievements
             userStatsRepository.checkAndUnlockAchievements()
 
-            // Check if plan is complete
-            if (state.completedAmount >= plan.targetAmount && plan.getCurrentTarget(today) >= plan.targetAmount) {
+            // Check if plan is complete (challenge finished)
+            val isChallengeComplete = state.completedAmount >= plan.targetAmount &&
+                plan.getCurrentTarget(today) >= plan.targetAmount
+
+            if (isChallengeComplete) {
                 val completedPlan = plan.copy(
                     isActive = false,
                     completedDate = today
@@ -194,7 +200,9 @@ class WorkoutViewModel @Inject constructor(
                 it.copy(
                     isCompleted = true,
                     xpEarned = xpEarned,
-                    showRewardScreen = true,
+                    showChallengeComplete = isChallengeComplete,
+                    completedPlan = if (isChallengeComplete) plan else null,
+                    showRewardScreen = !isChallengeComplete, // Show reward if not a challenge complete
                     totalXpBefore = totalXpBefore,
                     previousLevel = previousLevel,
                     newLevel = newLevel,
@@ -202,6 +210,16 @@ class WorkoutViewModel @Inject constructor(
                     newAchievements = newAchievements
                 )
             }
+        }
+    }
+
+    fun dismissChallengeComplete() {
+        // After challenge complete screen, show the reward screen
+        _uiState.update {
+            it.copy(
+                showChallengeComplete = false,
+                showRewardScreen = true
+            )
         }
     }
 
@@ -231,6 +249,15 @@ fun WorkoutScreen(
         viewModel.workoutComplete.collect {
             onWorkoutComplete()
         }
+    }
+
+    // Challenge Complete Screen (shown first when a challenge is finished)
+    if (uiState.showChallengeComplete && uiState.completedPlan != null) {
+        ChallengeCompleteScreen(
+            completedPlan = uiState.completedPlan,
+            onContinue = { viewModel.dismissChallengeComplete() }
+        )
+        return
     }
 
     // Reward Screen (Duolingo-style)

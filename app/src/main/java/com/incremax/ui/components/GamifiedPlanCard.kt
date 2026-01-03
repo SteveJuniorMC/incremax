@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -12,14 +11,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.incremax.domain.model.DifficultyLevel
 import com.incremax.domain.model.IncrementFrequency
 import com.incremax.domain.model.WorkoutPlan
 
@@ -36,7 +34,7 @@ fun GamifiedPlanCard(
     isSelected: Boolean = false,
     actionButton: @Composable (() -> Unit)? = null
 ) {
-    val accentColor = getAccentColorForExercise(plan.exerciseId)
+    val accentColor = getDifficultyColor(plan.difficulty)
 
     Card(
         modifier = modifier
@@ -201,19 +199,11 @@ fun GamifiedPlanCard(
 
 // Helper functions
 
-private fun getAccentColorForExercise(exerciseId: String): Color {
-    return when (exerciseId) {
-        "push_ups" -> Color(0xFF2196F3) // Blue
-        "squats" -> Color(0xFF9C27B0) // Purple
-        "sit_ups" -> Color(0xFFFF5722) // Deep Orange
-        "plank" -> Color(0xFF009688) // Teal
-        "running" -> Color(0xFF4CAF50) // Green
-        "walking" -> Color(0xFF8BC34A) // Light Green
-        "lunges" -> Color(0xFFE91E63) // Pink
-        "burpees" -> Color(0xFFF44336) // Red
-        "jumping_jacks" -> Color(0xFFFFEB3B) // Yellow
-        "stretching" -> Color(0xFF00BCD4) // Cyan
-        else -> Color(0xFF607D8B) // Blue Grey
+private fun getDifficultyColor(difficulty: DifficultyLevel): Color {
+    return when (difficulty) {
+        DifficultyLevel.BEGINNER -> Color(0xFF4CAF50) // Green
+        DifficultyLevel.INTERMEDIATE -> Color(0xFFFF9800) // Orange
+        DifficultyLevel.ADVANCED -> Color(0xFFF44336) // Red
     }
 }
 
