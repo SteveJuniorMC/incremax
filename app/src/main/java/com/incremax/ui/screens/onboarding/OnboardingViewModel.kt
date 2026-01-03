@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -100,32 +101,36 @@ class OnboardingViewModel @Inject constructor(
                 onboardingRepository.setSelectedGoal(goal)
             }
 
-            // Only insert plans once
+            // Only insert plans once, and skip if user already has plans (e.g., from cloud sync)
             if (!plansInserted) {
                 plansInserted = true
 
-                // Activate selected plans
-                val today = LocalDate.now()
-                val reminderTime = if (_uiState.value.reminderEnabled) {
-                    _uiState.value.reminderTime
-                } else null
+                // Check if user already has plans (from cloud sync during sign-in)
+                val existingPlans = workoutPlanRepository.getActivePlans().first()
+                if (existingPlans.isEmpty()) {
+                    // Activate selected plans
+                    val today = LocalDate.now()
+                    val reminderTime = if (_uiState.value.reminderEnabled) {
+                        _uiState.value.reminderTime
+                    } else null
 
-                val allPlans = _uiState.value.recommendedPlans + _uiState.value.otherPlans
-                val selectedPlans = allPlans.filter { it.id in _uiState.value.selectedPlanIds }
+                    val allPlans = _uiState.value.recommendedPlans + _uiState.value.otherPlans
+                    val selectedPlans = allPlans.filter { it.id in _uiState.value.selectedPlanIds }
 
-                selectedPlans.forEach { presetPlan ->
-                    val newPlan = presetPlan.copy(
-                        id = UUID.randomUUID().toString(),
-                        startDate = today,
-                        isActive = true,
-                        reminderEnabled = _uiState.value.reminderEnabled,
-                        reminderTime = reminderTime
-                    )
-                    workoutPlanRepository.insertPlan(newPlan)
+                    selectedPlans.forEach { presetPlan ->
+                        val newPlan = presetPlan.copy(
+                            id = UUID.randomUUID().toString(),
+                            startDate = today,
+                            isActive = true,
+                            reminderEnabled = _uiState.value.reminderEnabled,
+                            reminderTime = reminderTime
+                        )
+                        workoutPlanRepository.insertPlan(newPlan)
 
-                    // Schedule reminder for this plan if enabled
-                    if (_uiState.value.reminderEnabled) {
-                        notificationScheduler.schedulePlanReminder(newPlan)
+                        // Schedule reminder for this plan if enabled
+                        if (_uiState.value.reminderEnabled) {
+                            notificationScheduler.schedulePlanReminder(newPlan)
+                        }
                     }
                 }
             }
