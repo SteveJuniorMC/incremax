@@ -155,4 +155,15 @@ class UserStatsRepositoryImpl @Inject constructor(
             }
         }
     }
+
+    override suspend fun getUnlockedAchievementIds(): Set<String> {
+        return userStatsDao.getUnlockedAchievementIds().toSet()
+    }
+
+    override suspend fun getAchievementsByIds(ids: List<String>): List<Achievement> {
+        return PresetAchievements.all.filter { it.id in ids }.map { preset ->
+            val entity = userStatsDao.getAchievementById(preset.id)
+            preset.copy(unlockedAt = entity?.unlockedAt)
+        }
+    }
 }

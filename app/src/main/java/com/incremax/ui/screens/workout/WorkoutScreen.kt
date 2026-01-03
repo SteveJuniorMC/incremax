@@ -30,8 +30,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.incremax.domain.model.*
 import com.incremax.domain.repository.*
-import com.incremax.ui.components.CelebrationTier
-import com.incremax.ui.components.ConfettiEffect
+import com.incremax.ui.components.AchievementUnlockToast
+import com.incremax.ui.components.LevelUpCelebration
 import com.incremax.ui.theme.XpGold
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -51,7 +51,12 @@ data class WorkoutUiState(
     val isCompleted: Boolean = false,
     val xpEarned: Int = 0,
     val elapsedSeconds: Long = 0,
-    val showCompletionDialog: Boolean = false
+    val showCompletionDialog: Boolean = false,
+    val showLevelUp: Boolean = false,
+    val previousLevel: Int = 0,
+    val newLevel: Int = 0,
+    val newAchievements: List<Achievement> = emptyList(),
+    val showAchievements: Boolean = false
 )
 
 @HiltViewModel
@@ -127,11 +132,15 @@ class WorkoutViewModel @Inject constructor(
             val plan = state.plan ?: return@launch
             val today = LocalDate.now()
 
+            // Get current stats before changes
+            val userStatsBefore = userStatsRepository.getUserStatsSync()
+            val previousLevel = userStatsBefore.level
+            val achievementsBefore = userStatsRepository.getUnlockedAchievementIds()
+
             // Calculate XP
-            val userStats = userStatsRepository.getUserStatsSync()
             val isPerfect = state.completedAmount >= state.targetAmount
             val xpEarned = XpRewards.calculateWorkoutXp(
-                streakDays = userStats.currentStreak,
+                streakDays = userStatsBefore.currentStreak,
                 isPerfect = isPerfect
             )
 
@@ -158,11 +167,11 @@ class WorkoutViewModel @Inject constructor(
             userStatsRepository.incrementWorkouts()
 
             // Update streak
-            val lastWorkoutDate = userStats.lastWorkoutDate
+            val lastWorkoutDate = userStatsBefore.lastWorkoutDate
             val newStreak = when {
                 lastWorkoutDate == null -> 1
-                lastWorkoutDate == today -> userStats.currentStreak
-                lastWorkoutDate == today.minusDays(1) -> userStats.currentStreak + 1
+                lastWorkoutDate == today -> userStatsBefore.currentStreak
+                lastWorkoutDate == today.minusDays(1) -> userStatsBefore.currentStreak + 1
                 else -> 1
             }
             userStatsRepository.updateStreak(newStreak)
@@ -180,17 +189,58 @@ class WorkoutViewModel @Inject constructor(
                 workoutPlanRepository.updatePlan(completedPlan)
             }
 
+            // Get updated stats to check for level up and new achievements
+            val userStatsAfter = userStatsRepository.getUserStatsSync()
+            val newLevel = userStatsAfter.level
+            val leveledUp = newLevel > previousLevel
+
+            val achievementsAfter = userStatsRepository.getUnlockedAchievementIds()
+            val newAchievementIds = achievementsAfter - achievementsBefore
+            val newAchievements = if (newAchievementIds.isNotEmpty()) {
+                userStatsRepository.getAchievementsByIds(newAchievementIds.toList())
+            } else {
+                emptyList()
+            }
+
             _uiState.update {
                 it.copy(
                     isCompleted = true,
                     xpEarned = xpEarned,
-                    showCompletionDialog = true
+                    showCompletionDialog = true,
+                    showLevelUp = leveledUp,
+                    previousLevel = previousLevel,
+                    newLevel = newLevel,
+                    newAchievements = newAchievements,
+                    showAchievements = newAchievements.isNotEmpty()
                 )
             }
         }
     }
 
     fun dismissCompletionDialog() {
+        _uiState.update { it.copy(showCompletionDialog = false) }
+        // Check if we need to show level up or achievements
+        val state = _uiState.value
+        if (!state.showLevelUp && !state.showAchievements) {
+            viewModelScope.launch {
+                _workoutComplete.emit(Unit)
+            }
+        }
+    }
+
+    fun dismissLevelUp() {
+        _uiState.update { it.copy(showLevelUp = false) }
+        // Check if we need to show achievements next
+        val state = _uiState.value
+        if (!state.showAchievements) {
+            viewModelScope.launch {
+                _workoutComplete.emit(Unit)
+            }
+        }
+    }
+
+    fun dismissAchievements() {
+        _uiState.update { it.copy(showAchievements = false, newAchievements = emptyList()) }
         viewModelScope.launch {
             _workoutComplete.emit(Unit)
         }
@@ -226,6 +276,34 @@ fun WorkoutScreen(
             exerciseUnit = uiState.exercise?.unit ?: "reps",
             onDismiss = { viewModel.dismissCompletionDialog() }
         )
+    }
+
+    // Level Up Celebration (shows after completion dialog is dismissed)
+    if (!uiState.showCompletionDialog && uiState.showLevelUp) {
+        LevelUpCelebration(
+            previousLevel = uiState.previousLevel,
+            newLevel = uiState.newLevel,
+            onDismiss = { viewModel.dismissLevelUp() }
+        )
+    }
+
+    // Achievement Toasts (shows after level up is dismissed)
+    if (!uiState.showCompletionDialog && !uiState.showLevelUp && uiState.showAchievements && uiState.newAchievements.isNotEmpty()) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AchievementUnlockToast(
+                achievement = uiState.newAchievements.first(),
+                onDismiss = {
+                    if (uiState.newAchievements.size <= 1) {
+                        viewModel.dismissAchievements()
+                    } else {
+                        // Show next achievement
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 48.dp)
+            )
+        }
     }
 
     Scaffold(
@@ -511,7 +589,6 @@ fun WorkoutCompletionDialog(
     onDismiss: () -> Unit
 ) {
     val isPerfect = completedAmount >= targetAmount
-    val celebrationTier = if (isPerfect) CelebrationTier.PERFECT else CelebrationTier.BASIC
 
     // Haptic feedback on dialog show
     val view = LocalView.current
@@ -521,15 +598,10 @@ fun WorkoutCompletionDialog(
 
     // Animation states
     var showContent by remember { mutableStateOf(false) }
-    var showConfetti by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         delay(100)
         showContent = true
-        if (isPerfect) {
-            delay(200)
-            showConfetti = true
-        }
     }
 
     // Icon animation
@@ -573,15 +645,6 @@ fun WorkoutCompletionDialog(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            // Confetti overlay
-            if (isPerfect) {
-                ConfettiEffect(
-                    trigger = showConfetti,
-                    tier = celebrationTier,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
             // Dialog card
             Card(
                 modifier = Modifier

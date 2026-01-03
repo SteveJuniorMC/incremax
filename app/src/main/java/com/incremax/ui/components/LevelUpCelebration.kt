@@ -44,16 +44,13 @@ fun LevelUpCelebration(
 
     // Animation states
     var showContent by remember { mutableStateOf(false) }
-    var showConfetti by remember { mutableStateOf(false) }
     var showTitle by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         delay(100)
         showContent = true
-        delay(400)
-        showConfetti = true
-        delay(300)
+        delay(600)
         showTitle = true
     }
 
@@ -104,19 +101,6 @@ fun LevelUpCelebration(
                 .background(Color.Black.copy(alpha = 0.85f)),
             contentAlignment = Alignment.Center
         ) {
-            // Starburst effect
-            StarburstEffect(
-                trigger = showConfetti,
-                modifier = Modifier.fillMaxSize()
-            )
-
-            // Confetti
-            ConfettiEffect(
-                trigger = showConfetti,
-                tier = CelebrationTier.MILESTONE,
-                modifier = Modifier.fillMaxSize()
-            )
-
             Column(
                 modifier = Modifier
                     .padding(32.dp)

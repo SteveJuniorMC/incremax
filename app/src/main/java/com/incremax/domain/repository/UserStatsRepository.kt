@@ -23,4 +23,6 @@ interface UserStatsRepository {
     suspend fun unlockAchievement(id: String)
     suspend fun getUnlockedAchievementCount(): Int
     suspend fun checkAndUnlockAchievements()
+    suspend fun getUnlockedAchievementIds(): Set<String>
+    suspend fun getAchievementsByIds(ids: List<String>): List<Achievement>
 }

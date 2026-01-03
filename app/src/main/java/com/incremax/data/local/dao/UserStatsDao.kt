@@ -71,4 +71,7 @@ interface UserStatsDao {
 
     @Query("SELECT COUNT(*) FROM achievements WHERE unlockedAt IS NOT NULL")
     suspend fun getUnlockedAchievementCount(): Int
+
+    @Query("SELECT id FROM achievements WHERE unlockedAt IS NOT NULL")
+    suspend fun getUnlockedAchievementIds(): List<String>
 }
