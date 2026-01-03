@@ -206,7 +206,7 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun dismissRewardScreen() {
-        _uiState.update { it.copy(showRewardScreen = false) }
+        // Navigate immediately without changing state to avoid flash
         viewModelScope.launch {
             _workoutComplete.emit(Unit)
         }
