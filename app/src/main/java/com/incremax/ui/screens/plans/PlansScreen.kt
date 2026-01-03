@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.incremax.domain.model.WorkoutPlan
+import com.incremax.ui.components.GamifiedPlanCard
 import com.incremax.ui.theme.Success
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -321,82 +322,32 @@ fun BrowsePlansTab(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
             Text(
                 text = "Start a Challenge",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
         }
 
         items(presetPlans) { plan ->
-            val exercise = exercises.find { it.id == plan.exerciseId }
-            PresetPlanCard(
+            GamifiedPlanCard(
                 plan = plan,
-                exerciseName = exercise?.name ?: plan.exerciseId,
-                exerciseUnit = exercise?.unit ?: "reps",
-                onActivate = { onActivatePlan(plan) }
-            )
-        }
-    }
-}
-
-@Composable
-fun PresetPlanCard(
-    plan: WorkoutPlan,
-    exerciseName: String,
-    exerciseUnit: String,
-    onActivate: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Text(
-                text = plan.name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = plan.description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = "Start: ${plan.startingAmount} $exerciseUnit",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = "Goal: ${plan.targetAmount} $exerciseUnit",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = "+${plan.incrementAmount} ${plan.incrementFrequency.name.lowercase()}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                onClick = { onActivatePlan(plan) },
+                actionButton = {
+                    Button(
+                        onClick = { onActivatePlan(plan) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Start Challenge")
+                    }
                 }
-                Button(onClick = onActivate) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Start")
-                }
-            }
+            )
         }
     }
 }
