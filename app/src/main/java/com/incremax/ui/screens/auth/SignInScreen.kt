@@ -316,7 +316,7 @@ fun SignInScreen(
                     debugMsg = "FirebaseAuth: ${auth.app.name}, calling createUser..."
                     val task = auth.createUserWithEmailAndPassword("test${System.currentTimeMillis()}@test.com", "test123456")
                     debugMsg = "Task created: complete=${task.isComplete}, cancelled=${task.isCanceled}"
-                    task.addOnCompleteListener { t ->
+                    task.addOnCompleteListener(java.util.concurrent.Executors.newSingleThreadExecutor()) { t ->
                         debugMsg = if (t.isSuccessful) {
                             "SUCCESS: ${t.result?.user?.uid}"
                         } else {
@@ -327,6 +327,28 @@ fun SignInScreen(
                 modifier = Modifier.padding(top = 8.dp)
             ) {
                 Text("Test Firebase Direct")
+            }
+
+            // Network test
+            Button(
+                onClick = {
+                    debugMsg = "Testing network to Firebase..."
+                    Thread {
+                        try {
+                            val url = java.net.URL("https://identitytoolkit.googleapis.com/")
+                            val conn = url.openConnection() as java.net.HttpURLConnection
+                            conn.connectTimeout = 5000
+                            conn.connect()
+                            debugMsg = "Network OK: HTTP ${conn.responseCode}"
+                            conn.disconnect()
+                        } catch (e: Exception) {
+                            debugMsg = "Network FAILED: ${e.javaClass.simpleName}: ${e.message}"
+                        }
+                    }.start()
+                },
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                Text("Test Network")
             }
 
             // Forgot password (only in sign-in mode)
