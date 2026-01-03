@@ -294,11 +294,31 @@ fun SignInScreen(
 
             // DEBUG INFO - remove after fixing
             Spacer(modifier = Modifier.height(12.dp))
+            var debugMsg by remember { mutableStateOf("waiting...") }
             Text(
-                text = "DEBUG: authState=${uiState.authState::class.simpleName}, isLoading=${uiState.isLoading}",
+                text = "DEBUG: authState=${uiState.authState::class.simpleName}, isLoading=${uiState.isLoading}\n$debugMsg",
                 color = Color.Gray,
                 style = MaterialTheme.typography.bodySmall
             )
+
+            // Test Firebase directly
+            Button(
+                onClick = {
+                    debugMsg = "Testing Firebase..."
+                    val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                    debugMsg = "Got FirebaseAuth instance: ${auth.app.name}"
+                    auth.createUserWithEmailAndPassword("test${System.currentTimeMillis()}@test.com", "test123456")
+                        .addOnSuccessListener {
+                            debugMsg = "SUCCESS: ${it.user?.uid}"
+                        }
+                        .addOnFailureListener { e ->
+                            debugMsg = "FAILED: ${e.javaClass.simpleName}: ${e.message}"
+                        }
+                },
+                modifier = Modifier.padding(top = 8.dp)
+            ) {
+                Text("Test Firebase Direct")
+            }
 
             // Forgot password (only in sign-in mode)
             if (!uiState.isSignUpMode) {
