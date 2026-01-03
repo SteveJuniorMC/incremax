@@ -47,8 +47,8 @@ class AuthRepositoryImpl @Inject constructor(
             }
             when {
                 result == null -> AuthResult.Error("Sign-in timed out. Please check your connection and try again.")
-                result.user != null -> AuthResult.Success(result.user.toAuthUser())
-                else -> AuthResult.Error("No user returned from sign-in")
+                else -> result.user?.let { AuthResult.Success(it.toAuthUser()) }
+                    ?: AuthResult.Error("No user returned from sign-in")
             }
         } catch (e: Exception) {
             AuthResult.Error(e.toUserFriendlyMessage(), e)
@@ -62,8 +62,8 @@ class AuthRepositoryImpl @Inject constructor(
             }
             when {
                 result == null -> AuthResult.Error("Sign-in timed out. Please check your connection and try again.")
-                result.user != null -> AuthResult.Success(result.user.toAuthUser())
-                else -> AuthResult.Error("Sign-in failed")
+                else -> result.user?.let { AuthResult.Success(it.toAuthUser()) }
+                    ?: AuthResult.Error("Sign-in failed")
             }
         } catch (e: Exception) {
             AuthResult.Error(e.toUserFriendlyMessage(), e)
@@ -77,8 +77,8 @@ class AuthRepositoryImpl @Inject constructor(
             }
             when {
                 result == null -> AuthResult.Error("Sign-up timed out. Please check your connection and try again.")
-                result.user != null -> AuthResult.Success(result.user.toAuthUser())
-                else -> AuthResult.Error("Sign-up failed")
+                else -> result.user?.let { AuthResult.Success(it.toAuthUser()) }
+                    ?: AuthResult.Error("Sign-up failed")
             }
         } catch (e: Exception) {
             AuthResult.Error(e.toUserFriendlyMessage(), e)
