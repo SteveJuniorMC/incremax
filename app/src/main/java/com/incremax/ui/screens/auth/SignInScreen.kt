@@ -304,16 +304,25 @@ fun SignInScreen(
             // Test Firebase directly
             Button(
                 onClick = {
-                    debugMsg = "Testing Firebase..."
+                    debugMsg = "Checking Play Services..."
+                    val availability = com.google.android.gms.common.GoogleApiAvailability.getInstance()
+                    val result = availability.isGooglePlayServicesAvailable(context)
+                    if (result != com.google.android.gms.common.ConnectionResult.SUCCESS) {
+                        debugMsg = "Play Services ERROR: code=$result"
+                        return@Button
+                    }
+                    debugMsg = "Play Services OK. Testing Firebase..."
                     val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-                    debugMsg = "Got FirebaseAuth instance: ${auth.app.name}"
-                    auth.createUserWithEmailAndPassword("test${System.currentTimeMillis()}@test.com", "test123456")
-                        .addOnSuccessListener {
-                            debugMsg = "SUCCESS: ${it.user?.uid}"
+                    debugMsg = "FirebaseAuth: ${auth.app.name}, calling createUser..."
+                    val task = auth.createUserWithEmailAndPassword("test${System.currentTimeMillis()}@test.com", "test123456")
+                    debugMsg = "Task created: complete=${task.isComplete}, cancelled=${task.isCanceled}"
+                    task.addOnCompleteListener { t ->
+                        debugMsg = if (t.isSuccessful) {
+                            "SUCCESS: ${t.result?.user?.uid}"
+                        } else {
+                            "FAILED: ${t.exception?.javaClass?.simpleName}: ${t.exception?.message}"
                         }
-                        .addOnFailureListener { e ->
-                            debugMsg = "FAILED: ${e.javaClass.simpleName}: ${e.message}"
-                        }
+                    }
                 },
                 modifier = Modifier.padding(top = 8.dp)
             ) {
