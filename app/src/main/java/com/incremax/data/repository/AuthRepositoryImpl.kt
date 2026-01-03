@@ -12,9 +12,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import java.util.concurrent.Executors
 import kotlin.coroutines.resume
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private val authExecutor = Executors.newSingleThreadExecutor()
 
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
@@ -43,7 +46,7 @@ class AuthRepositoryImpl @Inject constructor(
             val credential = GoogleAuthProvider.getCredential(idToken, null)
             suspendCancellableCoroutine { continuation ->
                 firebaseAuth.signInWithCredential(credential)
-                    .addOnCompleteListener { task ->
+                    .addOnCompleteListener(authExecutor) { task ->
                         if (task.isSuccessful) {
                             task.result.user?.let {
                                 continuation.resume(AuthResult.Success(it.toAuthUser())) {}
@@ -63,7 +66,7 @@ class AuthRepositoryImpl @Inject constructor(
         return try {
             suspendCancellableCoroutine { continuation ->
                 firebaseAuth.signInWithEmailAndPassword(email, password)
-                    .addOnCompleteListener { task ->
+                    .addOnCompleteListener(authExecutor) { task ->
                         if (task.isSuccessful) {
                             task.result.user?.let {
                                 continuation.resume(AuthResult.Success(it.toAuthUser())) {}
@@ -83,7 +86,7 @@ class AuthRepositoryImpl @Inject constructor(
         return try {
             suspendCancellableCoroutine { continuation ->
                 firebaseAuth.createUserWithEmailAndPassword(email, password)
-                    .addOnCompleteListener { task ->
+                    .addOnCompleteListener(authExecutor) { task ->
                         if (task.isSuccessful) {
                             task.result.user?.let {
                                 continuation.resume(AuthResult.Success(it.toAuthUser())) {}
