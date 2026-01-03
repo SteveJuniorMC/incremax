@@ -10,6 +10,15 @@ android {
     namespace = "com.incremax"
     compileSdk = 34
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.incremax"
         minSdk = 26
