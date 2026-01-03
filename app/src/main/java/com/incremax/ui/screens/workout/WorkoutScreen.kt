@@ -30,8 +30,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.incremax.domain.model.*
 import com.incremax.domain.repository.*
-import com.incremax.ui.components.AchievementUnlockToast
-import com.incremax.ui.components.LevelUpCelebration
+import com.incremax.ui.components.CelebrationScreen
+import com.incremax.ui.components.CelebrationType
 import com.incremax.ui.theme.XpGold
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -52,11 +52,8 @@ data class WorkoutUiState(
     val xpEarned: Int = 0,
     val elapsedSeconds: Long = 0,
     val showCompletionDialog: Boolean = false,
-    val showLevelUp: Boolean = false,
-    val previousLevel: Int = 0,
-    val newLevel: Int = 0,
-    val newAchievements: List<Achievement> = emptyList(),
-    val showAchievements: Boolean = false
+    val celebrations: List<CelebrationType> = emptyList(),
+    val showCelebrations: Boolean = false
 )
 
 @HiltViewModel
@@ -202,16 +199,40 @@ class WorkoutViewModel @Inject constructor(
                 emptyList()
             }
 
+            // Build celebration list
+            val celebrations = mutableListOf<CelebrationType>()
+
+            // Level up celebration
+            if (leveledUp) {
+                celebrations.add(CelebrationType.LevelUp(previousLevel, newLevel))
+            }
+
+            // Streak milestone celebrations (7, 14, 30, 60, 90, 180, 365)
+            val streakMilestones = listOf(7, 14, 30, 60, 90, 180, 365)
+            val currentStreak = userStatsAfter.currentStreak
+            if (streakMilestones.contains(currentStreak) && currentStreak > userStatsBefore.currentStreak) {
+                celebrations.add(CelebrationType.StreakMilestone(currentStreak))
+            }
+
+            // Achievement celebrations
+            newAchievements.forEach { achievement ->
+                celebrations.add(CelebrationType.AchievementUnlocked(achievement))
+            }
+
+            // Plan completed celebration
+            val planCompleted = state.completedAmount >= plan.targetAmount &&
+                plan.getCurrentTarget(today) >= plan.targetAmount
+            if (planCompleted) {
+                celebrations.add(CelebrationType.PlanCompleted(plan.name))
+            }
+
             _uiState.update {
                 it.copy(
                     isCompleted = true,
                     xpEarned = xpEarned,
                     showCompletionDialog = true,
-                    showLevelUp = leveledUp,
-                    previousLevel = previousLevel,
-                    newLevel = newLevel,
-                    newAchievements = newAchievements,
-                    showAchievements = newAchievements.isNotEmpty()
+                    celebrations = celebrations,
+                    showCelebrations = celebrations.isNotEmpty()
                 )
             }
         }
@@ -219,28 +240,17 @@ class WorkoutViewModel @Inject constructor(
 
     fun dismissCompletionDialog() {
         _uiState.update { it.copy(showCompletionDialog = false) }
-        // Check if we need to show level up or achievements
+        // If no celebrations, go home
         val state = _uiState.value
-        if (!state.showLevelUp && !state.showAchievements) {
+        if (!state.showCelebrations) {
             viewModelScope.launch {
                 _workoutComplete.emit(Unit)
             }
         }
     }
 
-    fun dismissLevelUp() {
-        _uiState.update { it.copy(showLevelUp = false) }
-        // Check if we need to show achievements next
-        val state = _uiState.value
-        if (!state.showAchievements) {
-            viewModelScope.launch {
-                _workoutComplete.emit(Unit)
-            }
-        }
-    }
-
-    fun dismissAchievements() {
-        _uiState.update { it.copy(showAchievements = false, newAchievements = emptyList()) }
+    fun dismissCelebrations() {
+        _uiState.update { it.copy(showCelebrations = false, celebrations = emptyList()) }
         viewModelScope.launch {
             _workoutComplete.emit(Unit)
         }
@@ -278,32 +288,12 @@ fun WorkoutScreen(
         )
     }
 
-    // Level Up Celebration (shows after completion dialog is dismissed)
-    if (!uiState.showCompletionDialog && uiState.showLevelUp) {
-        LevelUpCelebration(
-            previousLevel = uiState.previousLevel,
-            newLevel = uiState.newLevel,
-            onDismiss = { viewModel.dismissLevelUp() }
+    // Celebration Screen (shows after completion dialog for level ups, achievements, streaks, etc.)
+    if (!uiState.showCompletionDialog && uiState.showCelebrations && uiState.celebrations.isNotEmpty()) {
+        CelebrationScreen(
+            celebrations = uiState.celebrations,
+            onDismiss = { viewModel.dismissCelebrations() }
         )
-    }
-
-    // Achievement Toasts (shows after level up is dismissed)
-    if (!uiState.showCompletionDialog && !uiState.showLevelUp && uiState.showAchievements && uiState.newAchievements.isNotEmpty()) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            AchievementUnlockToast(
-                achievement = uiState.newAchievements.first(),
-                onDismiss = {
-                    if (uiState.newAchievements.size <= 1) {
-                        viewModel.dismissAchievements()
-                    } else {
-                        // Show next achievement
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 48.dp)
-            )
-        }
     }
 
     Scaffold(
