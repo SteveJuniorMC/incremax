@@ -7,8 +7,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,7 +33,22 @@ fun PlanRecommendationScreen(
     onBack: () -> Unit
 ) {
     var showOtherPlans by remember { mutableStateOf(false) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
     val selectedCount = selectedPlanIds.size
+    val allPlans = recommendedPlans + otherPlans
+    val selectedPlans = allPlans.filter { it.id in selectedPlanIds }
+
+    // Confirmation dialog
+    if (showConfirmDialog) {
+        PlanConfirmationDialog(
+            selectedPlans = selectedPlans,
+            onConfirm = {
+                showConfirmDialog = false
+                onContinue()
+            },
+            onDismiss = { showConfirmDialog = false }
+        )
+    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -56,18 +73,19 @@ fun PlanRecommendationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .weight(1f),
-            contentPadding = PaddingValues(horizontal = 24.dp)
+            contentPadding = PaddingValues(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
                 Text(
-                    text = "Recommended for you",
+                    text = "Choose your challenges",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
                     text = "Based on your goal: $goalName",
@@ -77,7 +95,7 @@ fun PlanRecommendationScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
             // Recommended Plans
@@ -87,20 +105,17 @@ fun PlanRecommendationScreen(
                     isSelected = plan.id in selectedPlanIds,
                     onToggle = { onTogglePlan(plan.id) }
                 )
-                Spacer(modifier = Modifier.height(12.dp))
             }
 
             // Other Plans Section
             if (otherPlans.isNotEmpty()) {
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
-
                     TextButton(
                         onClick = { showOtherPlans = !showOtherPlans },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = if (showOtherPlans) "Hide other plans" else "Show other plans",
+                            text = if (showOtherPlans) "Hide other challenges" else "Show more challenges",
                             style = MaterialTheme.typography.labelLarge
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -110,28 +125,21 @@ fun PlanRecommendationScreen(
                             modifier = Modifier.size(18.dp)
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                item {
-                    AnimatedVisibility(visible = showOtherPlans) {
-                        Column {
-                            otherPlans.forEach { plan ->
-                                PlanSelectionCard(
-                                    plan = plan,
-                                    isSelected = plan.id in selectedPlanIds,
-                                    onToggle = { onTogglePlan(plan.id) }
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                            }
-                        }
+                if (showOtherPlans) {
+                    items(otherPlans) { plan ->
+                        PlanSelectionCard(
+                            plan = plan,
+                            isSelected = plan.id in selectedPlanIds,
+                            onToggle = { onTogglePlan(plan.id) }
+                        )
                     }
                 }
             }
 
             item {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
 
@@ -146,7 +154,7 @@ fun PlanRecommendationScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Button(
-                    onClick = onContinue,
+                    onClick = { showConfirmDialog = true },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
@@ -155,16 +163,119 @@ fun PlanRecommendationScreen(
                 ) {
                     Text(
                         text = if (selectedCount == 0) {
-                            "Select at least one plan"
+                            "Select at least one challenge"
                         } else if (selectedCount == 1) {
-                            "Continue with 1 plan"
+                            "Continue with 1 challenge"
                         } else {
-                            "Continue with $selectedCount plans"
+                            "Continue with $selectedCount challenges"
                         },
                         style = MaterialTheme.typography.titleMedium
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PlanConfirmationDialog(
+    selectedPlans: List<WorkoutPlan>,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Default.RocketLaunch,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            )
+        },
+        title = {
+            Text(
+                text = "Ready to start?",
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "You've selected ${selectedPlans.size} ${if (selectedPlans.size == 1) "challenge" else "challenges"}:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                selectedPlans.forEach { plan ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = plan.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Starting with ${formatStartingPoint(plan)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "You can always add or remove challenges later.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Let's go!")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Go back")
+            }
+        }
+    )
+}
+
+private fun formatStartingPoint(plan: WorkoutPlan): String {
+    return when (plan.exerciseId) {
+        "plank", "stretching" -> {
+            val seconds = plan.startingAmount
+            if (seconds >= 60) "${seconds / 60} min" else "${seconds}s"
+        }
+        "running", "walking" -> {
+            if (plan.startingAmount >= 1000) "${plan.startingAmount / 1000} km" else "${plan.startingAmount}m"
+        }
+        "push_ups" -> "${plan.startingAmount} push-ups"
+        "squats" -> "${plan.startingAmount} squats"
+        "sit_ups" -> "${plan.startingAmount} sit-ups"
+        else -> "${plan.startingAmount} reps"
     }
 }
