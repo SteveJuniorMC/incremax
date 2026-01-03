@@ -1,7 +1,6 @@
 package com.incremax.ui.screens.auth
 
 import android.app.Activity
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -49,10 +48,11 @@ fun SignInScreen(
     val focusManager = LocalFocusManager.current
     var passwordVisible by remember { mutableStateOf(false) }
 
-    // Log when screen loads
-    LaunchedEffect(Unit) {
-        Log.d("SignInScreen", "========== SIGN IN SCREEN LOADED ==========")
-        Log.d("SignInScreen", "uiState: isLoading=${uiState.isLoading}, error=${uiState.error}, authState=${uiState.authState}")
+    // Set sign-up as default for onboarding
+    LaunchedEffect(isOnboarding) {
+        if (isOnboarding && !uiState.isSignUpMode) {
+            viewModel.toggleSignUpMode()
+        }
     }
 
     // Google Sign-In
@@ -175,18 +175,14 @@ fun SignInScreen(
             // Google Sign-In Button
             OutlinedButton(
                 onClick = {
-                    Log.d("SignInScreen", "Google sign-in button clicked")
                     oneTapClient.beginSignIn(signInRequest)
                         .addOnSuccessListener { result ->
-                            Log.d("SignInScreen", "Google beginSignIn success, launching intent")
                             googleSignInLauncher.launch(
                                 IntentSenderRequest.Builder(result.pendingIntent.intentSender).build()
                             )
                         }
                         .addOnFailureListener { e ->
-                            Log.e("SignInScreen", "Google beginSignIn FAILED: ${e.javaClass.simpleName}: ${e.message}", e)
-                            val errorMsg = "${e.javaClass.simpleName}: ${e.message}"
-                            viewModel.setError(errorMsg)
+                            viewModel.setError("${e.javaClass.simpleName}: ${e.message}")
                         }
                 },
                 modifier = Modifier
@@ -292,77 +288,6 @@ fun SignInScreen(
                 )
             }
 
-            // DEBUG INFO - remove after fixing
-            Spacer(modifier = Modifier.height(12.dp))
-            var debugMsg by remember { mutableStateOf("waiting...") }
-            val hasInternet = remember {
-                context.packageManager.checkPermission(
-                    android.Manifest.permission.INTERNET,
-                    context.packageName
-                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-            }
-            Text(
-                text = "DEBUG: authState=${uiState.authState::class.simpleName}, isLoading=${uiState.isLoading}\nINTERNET perm: $hasInternet\n$debugMsg",
-                color = Color.Gray,
-                style = MaterialTheme.typography.bodySmall
-            )
-
-            // Test Firebase directly
-            Button(
-                onClick = {
-                    debugMsg = "Checking Play Services..."
-                    val availability = com.google.android.gms.common.GoogleApiAvailability.getInstance()
-                    val result = availability.isGooglePlayServicesAvailable(context)
-                    if (result != com.google.android.gms.common.ConnectionResult.SUCCESS) {
-                        debugMsg = "Play Services ERROR: code=$result"
-                        return@Button
-                    }
-                    debugMsg = "Play Services OK. Testing Firebase..."
-                    val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-                    debugMsg = "FirebaseAuth: ${auth.app.name}, calling createUser..."
-                    val task = auth.createUserWithEmailAndPassword("test${System.currentTimeMillis()}@test.com", "test123456")
-                    debugMsg = "Task created: complete=${task.isComplete}, cancelled=${task.isCanceled}"
-                    task.addOnCompleteListener(java.util.concurrent.Executors.newSingleThreadExecutor()) { t ->
-                        debugMsg = if (t.isSuccessful) {
-                            "SUCCESS: ${t.result?.user?.uid}"
-                        } else {
-                            "FAILED: ${t.exception?.javaClass?.simpleName}: ${t.exception?.message}"
-                        }
-                    }
-                },
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                Text("Test Firebase Direct")
-            }
-
-            // Network test
-            var networkResult by remember { mutableStateOf("tap to test") }
-            Button(
-                onClick = {
-                    networkResult = "Testing..."
-                    Thread {
-                        val result = try {
-                            val url = java.net.URL("https://www.google.com/")
-                            val conn = url.openConnection() as java.net.HttpURLConnection
-                            conn.connectTimeout = 5000
-                            conn.readTimeout = 5000
-                            conn.connect()
-                            val code = conn.responseCode
-                            conn.disconnect()
-                            "OK: HTTP $code"
-                        } catch (e: Exception) {
-                            "FAILED: ${e.javaClass.simpleName}: ${e.message}"
-                        }
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            networkResult = result
-                        }
-                    }.start()
-                },
-                modifier = Modifier.padding(top = 4.dp)
-            ) {
-                Text("Net: $networkResult")
-            }
-
             // Forgot password (only in sign-in mode)
             if (!uiState.isSignUpMode) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -378,10 +303,7 @@ fun SignInScreen(
 
             // Sign In / Sign Up button
             Button(
-                onClick = {
-                    Log.d("SignInScreen", "Sign In/Up button clicked, isSignUpMode=${uiState.isSignUpMode}")
-                    viewModel.signInWithEmail()
-                },
+                onClick = { viewModel.signInWithEmail() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
