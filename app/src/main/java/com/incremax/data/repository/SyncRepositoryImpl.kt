@@ -6,8 +6,11 @@ import com.incremax.data.remote.FirestoreDataSource
 import com.incremax.domain.repository.SyncRepository
 import com.incremax.domain.repository.SyncStatus
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val SYNC_TIMEOUT_MS = 15_000L
 
 @Singleton
 class SyncRepositoryImpl @Inject constructor(
@@ -26,7 +29,9 @@ class SyncRepositoryImpl @Inject constructor(
 
     override suspend fun hasCloudData(userId: String): Boolean {
         return try {
-            firestoreDataSource.hasData(userId)
+            withTimeoutOrNull(SYNC_TIMEOUT_MS) {
+                firestoreDataSource.hasData(userId)
+            } ?: false
         } catch (e: Exception) {
             false
         }
@@ -42,12 +47,15 @@ class SyncRepositoryImpl @Inject constructor(
     override suspend fun performInitialSync(userId: String) {
         _syncStatus.value = SyncStatus.SYNCING
         try {
-            if (hasCloudData(userId)) {
-                syncFromCloud(userId)
-            } else if (hasLocalData()) {
-                syncToCloud(userId)
+            val completed = withTimeoutOrNull(SYNC_TIMEOUT_MS * 2) {
+                if (hasCloudData(userId)) {
+                    syncFromCloud(userId)
+                } else if (hasLocalData()) {
+                    syncToCloud(userId)
+                }
+                true
             }
-            _syncStatus.value = SyncStatus.SUCCESS
+            _syncStatus.value = if (completed == true) SyncStatus.SUCCESS else SyncStatus.ERROR
         } catch (e: Exception) {
             _syncStatus.value = SyncStatus.ERROR
         }

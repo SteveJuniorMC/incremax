@@ -10,14 +10,12 @@ import com.incremax.domain.repository.AuthRepository
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.tasks.await
-import java.util.concurrent.Executors
-import kotlin.coroutines.resume
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val authExecutor = Executors.newSingleThreadExecutor()
+private const val AUTH_TIMEOUT_MS = 30_000L
 
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
@@ -44,18 +42,13 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun signInWithGoogle(idToken: String): AuthResult {
         return try {
             val credential = GoogleAuthProvider.getCredential(idToken, null)
-            suspendCancellableCoroutine { continuation ->
-                firebaseAuth.signInWithCredential(credential)
-                    .addOnCompleteListener(authExecutor) { task ->
-                        if (task.isSuccessful) {
-                            task.result.user?.let {
-                                continuation.resume(AuthResult.Success(it.toAuthUser())) {}
-                            } ?: continuation.resume(AuthResult.Error("No user returned")) {}
-                        } else {
-                            val e = task.exception
-                            continuation.resume(AuthResult.Error("${e?.javaClass?.simpleName}: ${e?.message}", e)) {}
-                        }
-                    }
+            val result = withTimeoutOrNull(AUTH_TIMEOUT_MS) {
+                firebaseAuth.signInWithCredential(credential).await()
+            }
+            when {
+                result == null -> AuthResult.Error("Sign-in timed out. Please check your connection and try again.")
+                result.user != null -> AuthResult.Success(result.user!!.toAuthUser())
+                else -> AuthResult.Error("No user returned from sign-in")
             }
         } catch (e: Exception) {
             AuthResult.Error("${e.javaClass.simpleName}: ${e.message}", e)
@@ -64,50 +57,46 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun signInWithEmail(email: String, password: String): AuthResult {
         return try {
-            suspendCancellableCoroutine { continuation ->
-                firebaseAuth.signInWithEmailAndPassword(email, password)
-                    .addOnCompleteListener(authExecutor) { task ->
-                        if (task.isSuccessful) {
-                            task.result.user?.let {
-                                continuation.resume(AuthResult.Success(it.toAuthUser())) {}
-                            } ?: continuation.resume(AuthResult.Error("Sign-in failed")) {}
-                        } else {
-                            val e = task.exception
-                            continuation.resume(AuthResult.Error("${e?.javaClass?.simpleName}: ${e?.message}", e)) {}
-                        }
-                    }
+            val result = withTimeoutOrNull(AUTH_TIMEOUT_MS) {
+                firebaseAuth.signInWithEmailAndPassword(email, password).await()
+            }
+            when {
+                result == null -> AuthResult.Error("Sign-in timed out. Please check your connection and try again.")
+                result.user != null -> AuthResult.Success(result.user!!.toAuthUser())
+                else -> AuthResult.Error("Sign-in failed")
             }
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Email sign-in failed", e)
+            AuthResult.Error("${e.javaClass.simpleName}: ${e.message}", e)
         }
     }
 
     override suspend fun signUpWithEmail(email: String, password: String): AuthResult {
         return try {
-            suspendCancellableCoroutine { continuation ->
-                firebaseAuth.createUserWithEmailAndPassword(email, password)
-                    .addOnCompleteListener(authExecutor) { task ->
-                        if (task.isSuccessful) {
-                            task.result.user?.let {
-                                continuation.resume(AuthResult.Success(it.toAuthUser())) {}
-                            } ?: continuation.resume(AuthResult.Error("Sign-up failed")) {}
-                        } else {
-                            val e = task.exception
-                            continuation.resume(AuthResult.Error("${e?.javaClass?.simpleName}: ${e?.message}", e)) {}
-                        }
-                    }
+            val result = withTimeoutOrNull(AUTH_TIMEOUT_MS) {
+                firebaseAuth.createUserWithEmailAndPassword(email, password).await()
+            }
+            when {
+                result == null -> AuthResult.Error("Sign-up timed out. Please check your connection and try again.")
+                result.user != null -> AuthResult.Success(result.user!!.toAuthUser())
+                else -> AuthResult.Error("Sign-up failed")
             }
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Email sign-up failed", e)
+            AuthResult.Error("${e.javaClass.simpleName}: ${e.message}", e)
         }
     }
 
     override suspend fun sendPasswordResetEmail(email: String): AuthResult {
         return try {
-            firebaseAuth.sendPasswordResetEmail(email).await()
-            AuthResult.Success(AuthUser("", email, null, null, false, emptyList()))
+            val result = withTimeoutOrNull(AUTH_TIMEOUT_MS) {
+                firebaseAuth.sendPasswordResetEmail(email).await()
+            }
+            if (result != null) {
+                AuthResult.Success(AuthUser("", email, null, null, false, emptyList()))
+            } else {
+                AuthResult.Error("Request timed out. Please check your connection and try again.")
+            }
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Failed to send reset email", e)
+            AuthResult.Error("${e.javaClass.simpleName}: ${e.message}", e)
         }
     }
 
