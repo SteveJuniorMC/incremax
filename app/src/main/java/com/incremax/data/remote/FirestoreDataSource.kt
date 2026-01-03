@@ -6,13 +6,17 @@ import com.incremax.data.local.entity.*
 import com.incremax.domain.model.ExerciseCategory
 import com.incremax.domain.model.ExerciseType
 import com.incremax.domain.model.IncrementFrequency
+import android.util.Log
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "FirestoreDataSource"
 
 @Singleton
 class FirestoreDataSource @Inject constructor(
@@ -151,6 +155,56 @@ class FirestoreDataSource @Inject constructor(
         private val DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE
         private val DATETIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME
         private val TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_TIME
+
+        private fun parseLocalDate(value: String?, fallback: LocalDate = LocalDate.now()): LocalDate {
+            if (value.isNullOrBlank()) return fallback
+            return try {
+                LocalDate.parse(value, DATE_FORMATTER)
+            } catch (e: DateTimeParseException) {
+                Log.w(TAG, "Failed to parse date: $value", e)
+                fallback
+            }
+        }
+
+        private fun parseLocalDateOrNull(value: String?): LocalDate? {
+            if (value.isNullOrBlank()) return null
+            return try {
+                LocalDate.parse(value, DATE_FORMATTER)
+            } catch (e: DateTimeParseException) {
+                Log.w(TAG, "Failed to parse date: $value", e)
+                null
+            }
+        }
+
+        private fun parseLocalDateTime(value: String?, fallback: LocalDateTime = LocalDateTime.now()): LocalDateTime {
+            if (value.isNullOrBlank()) return fallback
+            return try {
+                LocalDateTime.parse(value, DATETIME_FORMATTER)
+            } catch (e: DateTimeParseException) {
+                Log.w(TAG, "Failed to parse datetime: $value", e)
+                fallback
+            }
+        }
+
+        private fun parseLocalDateTimeOrNull(value: String?): LocalDateTime? {
+            if (value.isNullOrBlank()) return null
+            return try {
+                LocalDateTime.parse(value, DATETIME_FORMATTER)
+            } catch (e: DateTimeParseException) {
+                Log.w(TAG, "Failed to parse datetime: $value", e)
+                null
+            }
+        }
+
+        private fun parseLocalTimeOrNull(value: String?): LocalTime? {
+            if (value.isNullOrBlank()) return null
+            return try {
+                LocalTime.parse(value, TIME_FORMATTER)
+            } catch (e: DateTimeParseException) {
+                Log.w(TAG, "Failed to parse time: $value", e)
+                null
+            }
+        }
     }
 
     // Entity to Firestore map conversions
@@ -172,9 +226,7 @@ class FirestoreDataSource @Inject constructor(
         longestStreak = (this["longestStreak"] as? Long)?.toInt() ?: 0,
         totalWorkouts = (this["totalWorkouts"] as? Long)?.toInt() ?: 0,
         streakFreezes = (this["streakFreezes"] as? Long)?.toInt() ?: 0,
-        lastWorkoutDate = (this["lastWorkoutDate"] as? String)?.let {
-            LocalDate.parse(it, DATE_FORMATTER)
-        }
+        lastWorkoutDate = parseLocalDateOrNull(this["lastWorkoutDate"] as? String)
     )
 
     private fun ExerciseEntity.toFirestoreMap(): Map<String, Any?> = mapOf(
@@ -190,8 +242,12 @@ class FirestoreDataSource @Inject constructor(
     private fun Map<String, Any?>.toExerciseEntity(id: String): ExerciseEntity = ExerciseEntity(
         id = id,
         name = this["name"] as? String ?: "",
-        type = (this["type"] as? String)?.let { ExerciseType.valueOf(it) } ?: ExerciseType.REPS,
-        category = (this["category"] as? String)?.let { ExerciseCategory.valueOf(it) } ?: ExerciseCategory.BODYWEIGHT,
+        type = (this["type"] as? String)?.let {
+            try { ExerciseType.valueOf(it) } catch (e: IllegalArgumentException) { null }
+        } ?: ExerciseType.REPS,
+        category = (this["category"] as? String)?.let {
+            try { ExerciseCategory.valueOf(it) } catch (e: IllegalArgumentException) { null }
+        } ?: ExerciseCategory.BODYWEIGHT,
         unit = this["unit"] as? String ?: "",
         icon = this["icon"] as? String ?: "",
         description = this["description"] as? String ?: "",
@@ -223,20 +279,14 @@ class FirestoreDataSource @Inject constructor(
         targetAmount = (this["targetAmount"] as? Long)?.toInt() ?: 0,
         incrementAmount = (this["incrementAmount"] as? Long)?.toInt() ?: 0,
         incrementFrequency = (this["incrementFrequency"] as? String)?.let {
-            IncrementFrequency.valueOf(it)
+            try { IncrementFrequency.valueOf(it) } catch (e: IllegalArgumentException) { null }
         } ?: IncrementFrequency.WEEKLY,
-        startDate = (this["startDate"] as? String)?.let {
-            LocalDate.parse(it, DATE_FORMATTER)
-        } ?: LocalDate.now(),
+        startDate = parseLocalDate(this["startDate"] as? String),
         isActive = this["isActive"] as? Boolean ?: false,
         isPreset = this["isPreset"] as? Boolean ?: false,
-        completedDate = (this["completedDate"] as? String)?.let {
-            LocalDate.parse(it, DATE_FORMATTER)
-        },
+        completedDate = parseLocalDateOrNull(this["completedDate"] as? String),
         reminderEnabled = this["reminderEnabled"] as? Boolean ?: false,
-        reminderTime = (this["reminderTime"] as? String)?.let {
-            LocalTime.parse(it, TIME_FORMATTER)
-        }
+        reminderTime = parseLocalTimeOrNull(this["reminderTime"] as? String)
     )
 
     private fun WorkoutSessionEntity.toFirestoreMap(): Map<String, Any?> = mapOf(
@@ -254,16 +304,12 @@ class FirestoreDataSource @Inject constructor(
         id = id,
         planId = this["planId"] as? String ?: "",
         exerciseId = this["exerciseId"] as? String ?: "",
-        date = (this["date"] as? String)?.let {
-            LocalDate.parse(it, DATE_FORMATTER)
-        } ?: LocalDate.now(),
+        date = parseLocalDate(this["date"] as? String),
         completedAmount = (this["completedAmount"] as? Long)?.toInt() ?: 0,
         targetAmount = (this["targetAmount"] as? Long)?.toInt() ?: 0,
         xpEarned = (this["xpEarned"] as? Long)?.toInt() ?: 0,
         durationSeconds = (this["durationSeconds"] as? Long) ?: 0L,
-        completedAt = (this["completedAt"] as? String)?.let {
-            LocalDateTime.parse(it, DATETIME_FORMATTER)
-        } ?: LocalDateTime.now()
+        completedAt = parseLocalDateTime(this["completedAt"] as? String)
     )
 
     private fun AchievementEntity.toFirestoreMap(): Map<String, Any?> = mapOf(
@@ -272,9 +318,7 @@ class FirestoreDataSource @Inject constructor(
 
     private fun Map<String, Any?>.toAchievementEntity(id: String): AchievementEntity = AchievementEntity(
         id = id,
-        unlockedAt = (this["unlockedAt"] as? String)?.let {
-            LocalDateTime.parse(it, DATETIME_FORMATTER)
-        }
+        unlockedAt = parseLocalDateTimeOrNull(this["unlockedAt"] as? String)
     )
 
     private fun ExerciseTotalEntity.toFirestoreMap(): Map<String, Any?> = mapOf(

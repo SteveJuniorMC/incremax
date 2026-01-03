@@ -30,6 +30,9 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // Google OAuth Client ID - should be overridden in local.properties for production
+        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"276805170608-ih5ooa017c7dj21pb1i1437qm61ltl97.apps.googleusercontent.com\"")
     }
 
     buildTypes {
@@ -54,6 +57,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {

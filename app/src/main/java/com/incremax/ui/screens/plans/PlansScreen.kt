@@ -27,9 +27,9 @@ fun PlansScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    if (uiState.showReminderPrompt && uiState.activatedPlan != null) {
+    uiState.activatedPlan?.takeIf { uiState.showReminderPrompt }?.let { plan ->
         com.incremax.ui.components.ReminderPromptDialog(
-            planName = uiState.activatedPlan!!.name,
+            planName = plan.name,
             onSetReminder = { time -> viewModel.setReminder(time) },
             onSkip = { viewModel.skipReminder() }
         )

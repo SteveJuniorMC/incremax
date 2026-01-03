@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
+import com.incremax.BuildConfig
 import com.incremax.domain.model.AuthState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +63,7 @@ fun SignInScreen(
             .setGoogleIdTokenRequestOptions(
                 BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
                     .setSupported(true)
-                    .setServerClientId("276805170608-ih5ooa017c7dj21pb1i1437qm61ltl97.apps.googleusercontent.com")
+                    .setServerClientId(BuildConfig.GOOGLE_CLIENT_ID)
                     .setFilterByAuthorizedAccounts(false)
                     .build()
             )
@@ -182,7 +183,7 @@ fun SignInScreen(
                             )
                         }
                         .addOnFailureListener { e ->
-                            viewModel.setError("${e.javaClass.simpleName}: ${e.message}")
+                            viewModel.setError(e.toUserFriendlyMessage())
                         }
                 },
                 modifier = Modifier
@@ -279,10 +280,10 @@ fun SignInScreen(
             )
 
             // Error message
-            if (uiState.error != null) {
+            uiState.error?.let { errorMessage ->
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = uiState.error!!,
+                    text = errorMessage,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -408,4 +409,20 @@ fun LocalDataWarningDialog(
             }
         }
     )
+}
+
+private fun Exception.toUserFriendlyMessage(): String {
+    return when {
+        message?.contains("network", ignoreCase = true) == true ->
+            "Network error. Please check your connection and try again."
+        message?.contains("timeout", ignoreCase = true) == true ->
+            "Request timed out. Please try again."
+        message?.contains("cancelled", ignoreCase = true) == true ->
+            "Sign-in was cancelled."
+        message?.contains("credential", ignoreCase = true) == true ->
+            "Unable to verify credentials. Please try again."
+        message?.contains("16:", ignoreCase = true) == true ->
+            "Google Sign-In is not available. Please try email sign-in."
+        else -> "Sign-in failed. Please try again."
+    }
 }

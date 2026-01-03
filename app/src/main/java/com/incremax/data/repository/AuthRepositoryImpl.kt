@@ -47,11 +47,11 @@ class AuthRepositoryImpl @Inject constructor(
             }
             when {
                 result == null -> AuthResult.Error("Sign-in timed out. Please check your connection and try again.")
-                result.user != null -> AuthResult.Success(result.user!!.toAuthUser())
+                result.user != null -> AuthResult.Success(result.user.toAuthUser())
                 else -> AuthResult.Error("No user returned from sign-in")
             }
         } catch (e: Exception) {
-            AuthResult.Error("${e.javaClass.simpleName}: ${e.message}", e)
+            AuthResult.Error(e.toUserFriendlyMessage(), e)
         }
     }
 
@@ -62,11 +62,11 @@ class AuthRepositoryImpl @Inject constructor(
             }
             when {
                 result == null -> AuthResult.Error("Sign-in timed out. Please check your connection and try again.")
-                result.user != null -> AuthResult.Success(result.user!!.toAuthUser())
+                result.user != null -> AuthResult.Success(result.user.toAuthUser())
                 else -> AuthResult.Error("Sign-in failed")
             }
         } catch (e: Exception) {
-            AuthResult.Error("${e.javaClass.simpleName}: ${e.message}", e)
+            AuthResult.Error(e.toUserFriendlyMessage(), e)
         }
     }
 
@@ -77,11 +77,11 @@ class AuthRepositoryImpl @Inject constructor(
             }
             when {
                 result == null -> AuthResult.Error("Sign-up timed out. Please check your connection and try again.")
-                result.user != null -> AuthResult.Success(result.user!!.toAuthUser())
+                result.user != null -> AuthResult.Success(result.user.toAuthUser())
                 else -> AuthResult.Error("Sign-up failed")
             }
         } catch (e: Exception) {
-            AuthResult.Error("${e.javaClass.simpleName}: ${e.message}", e)
+            AuthResult.Error(e.toUserFriendlyMessage(), e)
         }
     }
 
@@ -96,7 +96,7 @@ class AuthRepositoryImpl @Inject constructor(
                 AuthResult.Error("Request timed out. Please check your connection and try again.")
             }
         } catch (e: Exception) {
-            AuthResult.Error("${e.javaClass.simpleName}: ${e.message}", e)
+            AuthResult.Error(e.toUserFriendlyMessage(), e)
         }
     }
 
@@ -115,5 +115,20 @@ class AuthRepositoryImpl @Inject constructor(
             isEmailVerified = isEmailVerified,
             providerIds = providerData.map { it.providerId }
         )
+    }
+
+    private fun Exception.toUserFriendlyMessage(): String {
+        val msg = message?.lowercase() ?: ""
+        return when {
+            msg.contains("network") -> "Network error. Please check your connection."
+            msg.contains("email") && msg.contains("already") -> "This email is already in use."
+            msg.contains("password") && msg.contains("weak") -> "Password is too weak. Use at least 6 characters."
+            msg.contains("invalid") && msg.contains("email") -> "Please enter a valid email address."
+            msg.contains("user") && msg.contains("not found") -> "No account found with this email."
+            msg.contains("wrong") && msg.contains("password") -> "Incorrect password. Please try again."
+            msg.contains("credential") -> "Invalid credentials. Please try again."
+            msg.contains("too many") -> "Too many attempts. Please try again later."
+            else -> "Authentication failed. Please try again."
+        }
     }
 }
