@@ -72,10 +72,14 @@ fun SignInScreen(
                 val idToken = credential.googleIdToken
                 if (idToken != null) {
                     viewModel.signInWithGoogle(idToken)
+                } else {
+                    viewModel.setError("No ID token received from Google")
                 }
             } catch (e: Exception) {
-                // Handle error
+                viewModel.setError("Failed to get credential: ${e.message}")
             }
+        } else {
+            viewModel.setError("Google sign-in cancelled or failed")
         }
     }
 
