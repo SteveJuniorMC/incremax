@@ -252,9 +252,10 @@ fun WorkoutScreen(
     }
 
     // Challenge Complete Screen (shown first when a challenge is finished)
-    if (uiState.showChallengeComplete && uiState.completedPlan != null) {
+    val completedPlan = uiState.completedPlan
+    if (uiState.showChallengeComplete && completedPlan != null) {
         ChallengeCompleteScreen(
-            completedPlan = uiState.completedPlan,
+            completedPlan = completedPlan,
             onContinue = { viewModel.dismissChallengeComplete() }
         )
         return
