@@ -1,5 +1,7 @@
 package com.incremax.ui.screens.workout
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -14,15 +16,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.incremax.domain.model.*
 import com.incremax.domain.repository.*
+import com.incremax.ui.components.CelebrationTier
+import com.incremax.ui.components.ConfettiEffect
+import com.incremax.ui.theme.XpGold
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -303,42 +313,99 @@ fun WorkoutScreen(
 
                     Spacer(modifier = Modifier.height(40.dp))
 
-                    // Counter controls
+                    // Counter controls with haptic feedback
+                    val view = LocalView.current
+
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // -5 button
+                        var minus5Pressed by remember { mutableStateOf(false) }
+                        val minus5Scale by animateFloatAsState(
+                            targetValue = if (minus5Pressed) 0.85f else 1f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessHigh
+                            ),
+                            label = "minus5Scale"
+                        )
+                        LaunchedEffect(minus5Pressed) {
+                            if (minus5Pressed) {
+                                delay(100)
+                                minus5Pressed = false
+                            }
+                        }
+
                         FilledTonalIconButton(
-                            onClick = { viewModel.decrementAmount(5) },
-                            modifier = Modifier.size(48.dp)
+                            onClick = {
+                                minus5Pressed = true
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                viewModel.decrementAmount(5)
+                            },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .scale(minus5Scale)
                         ) {
                             Text("-5", fontWeight = FontWeight.Bold)
                         }
 
                         // -1 button
+                        var minus1Pressed by remember { mutableStateOf(false) }
+                        val minus1Scale by animateFloatAsState(
+                            targetValue = if (minus1Pressed) 0.85f else 1f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessHigh
+                            ),
+                            label = "minus1Scale"
+                        )
+                        LaunchedEffect(minus1Pressed) {
+                            if (minus1Pressed) {
+                                delay(100)
+                                minus1Pressed = false
+                            }
+                        }
+
                         FilledTonalIconButton(
-                            onClick = { viewModel.decrementAmount(1) },
-                            modifier = Modifier.size(56.dp)
+                            onClick = {
+                                minus1Pressed = true
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                viewModel.decrementAmount(1)
+                            },
+                            modifier = Modifier
+                                .size(56.dp)
+                                .scale(minus1Scale)
                         ) {
                             Icon(Icons.Default.Remove, contentDescription = "Decrease")
                         }
 
-                        // +1 button (main action)
-                        val scale by animateFloatAsState(
-                            targetValue = 1f,
+                        // +1 button (main action) with bounce
+                        var plus1Pressed by remember { mutableStateOf(false) }
+                        val plus1Scale by animateFloatAsState(
+                            targetValue = if (plus1Pressed) 1.15f else 1f,
                             animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessLow
+                                stiffness = Spring.StiffnessHigh
                             ),
-                            label = "scale"
+                            label = "plus1Scale"
                         )
+                        LaunchedEffect(plus1Pressed) {
+                            if (plus1Pressed) {
+                                delay(100)
+                                plus1Pressed = false
+                            }
+                        }
 
                         FloatingActionButton(
-                            onClick = { viewModel.incrementAmount(1) },
+                            onClick = {
+                                plus1Pressed = true
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                viewModel.incrementAmount(1)
+                            },
                             modifier = Modifier
                                 .size(80.dp)
-                                .scale(scale),
+                                .scale(plus1Scale),
                             containerColor = MaterialTheme.colorScheme.primary
                         ) {
                             Icon(
@@ -349,17 +416,61 @@ fun WorkoutScreen(
                         }
 
                         // +5 button
+                        var plus5Pressed by remember { mutableStateOf(false) }
+                        val plus5Scale by animateFloatAsState(
+                            targetValue = if (plus5Pressed) 0.85f else 1f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessHigh
+                            ),
+                            label = "plus5Scale"
+                        )
+                        LaunchedEffect(plus5Pressed) {
+                            if (plus5Pressed) {
+                                delay(100)
+                                plus5Pressed = false
+                            }
+                        }
+
                         FilledTonalIconButton(
-                            onClick = { viewModel.incrementAmount(5) },
-                            modifier = Modifier.size(56.dp)
+                            onClick = {
+                                plus5Pressed = true
+                                view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+                                viewModel.incrementAmount(5)
+                            },
+                            modifier = Modifier
+                                .size(56.dp)
+                                .scale(plus5Scale)
                         ) {
                             Text("+5", fontWeight = FontWeight.Bold)
                         }
 
                         // +10 button
+                        var plus10Pressed by remember { mutableStateOf(false) }
+                        val plus10Scale by animateFloatAsState(
+                            targetValue = if (plus10Pressed) 0.85f else 1f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessHigh
+                            ),
+                            label = "plus10Scale"
+                        )
+                        LaunchedEffect(plus10Pressed) {
+                            if (plus10Pressed) {
+                                delay(100)
+                                plus10Pressed = false
+                            }
+                        }
+
                         FilledTonalIconButton(
-                            onClick = { viewModel.incrementAmount(10) },
-                            modifier = Modifier.size(48.dp)
+                            onClick = {
+                                plus10Pressed = true
+                                view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+                                viewModel.incrementAmount(10)
+                            },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .scale(plus10Scale)
                         ) {
                             Text("+10", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
@@ -400,91 +511,210 @@ fun WorkoutCompletionDialog(
     onDismiss: () -> Unit
 ) {
     val isPerfect = completedAmount >= targetAmount
+    val celebrationTier = if (isPerfect) CelebrationTier.PERFECT else CelebrationTier.BASIC
 
-    AlertDialog(
+    // Haptic feedback on dialog show
+    val view = LocalView.current
+    LaunchedEffect(Unit) {
+        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+    }
+
+    // Animation states
+    var showContent by remember { mutableStateOf(false) }
+    var showConfetti by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        showContent = true
+        if (isPerfect) {
+            delay(200)
+            showConfetti = true
+        }
+    }
+
+    // Icon animation
+    val iconScale by animateFloatAsState(
+        targetValue = if (showContent) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "iconScale"
+    )
+
+    // Title animation
+    val titleAlpha by animateFloatAsState(
+        targetValue = if (showContent) 1f else 0f,
+        animationSpec = tween(300, delayMillis = 150),
+        label = "titleAlpha"
+    )
+
+    // XP card animation
+    val xpScale by animateFloatAsState(
+        targetValue = if (showContent) 1f else 0.8f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+            visibilityThreshold = 0.01f
+        ),
+        label = "xpScale"
+    )
+    val xpAlpha by animateFloatAsState(
+        targetValue = if (showContent) 1f else 0f,
+        animationSpec = tween(300, delayMillis = 300),
+        label = "xpAlpha"
+    )
+
+    Dialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            colors = if (isPerfect) {
-                                listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.tertiary
-                                )
-                            } else {
-                                listOf(
-                                    MaterialTheme.colorScheme.secondary,
-                                    MaterialTheme.colorScheme.secondary
-                                )
-                            }
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    if (isPerfect) Icons.Default.EmojiEvents else Icons.Default.Check,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(36.dp)
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            // Confetti overlay
+            if (isPerfect) {
+                ConfettiEffect(
+                    trigger = showConfetti,
+                    tier = celebrationTier,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
-        },
-        title = {
-            Text(
-                text = if (isPerfect) "Excellent!" else "Good Job!",
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        text = {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
+
+            // Dialog card
+            Card(
+                modifier = Modifier
+                    .padding(32.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
-                Text(
-                    text = "$completedAmount / $targetAmount $exerciseUnit",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                    )
+                Column(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Animated icon
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .scale(iconScale)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(
+                                    colors = if (isPerfect) {
+                                        listOf(
+                                            MaterialTheme.colorScheme.primary,
+                                            MaterialTheme.colorScheme.tertiary
+                                        )
+                                    } else {
+                                        listOf(
+                                            MaterialTheme.colorScheme.secondary,
+                                            MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            Icons.Default.Star,
+                            if (isPerfect) Icons.Default.EmojiEvents else Icons.Default.Check,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.tertiary
+                            tint = Color.White,
+                            modifier = Modifier.size(44.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Title with animation
+                    Text(
+                        text = if (isPerfect) "Excellent!" else "Good Job!",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.graphicsLayer(alpha = titleAlpha)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Completion stats
+                    Text(
+                        text = "$completedAmount / $targetAmount $exerciseUnit",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        modifier = Modifier.graphicsLayer(alpha = titleAlpha)
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // XP earned card with animation
+                    Card(
+                        modifier = Modifier
+                            .scale(xpScale)
+                            .graphicsLayer(alpha = xpAlpha),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 28.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = null,
+                                tint = XpGold,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "+$xpEarned XP",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+
+                    if (isPerfect) {
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "+$xpEarned XP",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                            text = "Target reached!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.graphicsLayer(alpha = xpAlpha)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Continue button
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            "Continue",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Continue")
-            }
         }
-    )
+    }
 }
 
 private fun formatTime(seconds: Long): String {
