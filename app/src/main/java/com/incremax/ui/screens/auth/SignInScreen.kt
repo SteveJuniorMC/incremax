@@ -292,6 +292,14 @@ fun SignInScreen(
                 )
             }
 
+            // DEBUG INFO - remove after fixing
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "DEBUG: authState=${uiState.authState::class.simpleName}, isLoading=${uiState.isLoading}",
+                color = Color.Gray,
+                style = MaterialTheme.typography.bodySmall
+            )
+
             // Forgot password (only in sign-in mode)
             if (!uiState.isSignUpMode) {
                 Spacer(modifier = Modifier.height(8.dp))
