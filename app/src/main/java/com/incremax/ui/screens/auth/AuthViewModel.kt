@@ -52,13 +52,23 @@ class AuthViewModel @Inject constructor(
     }
 
     private suspend fun checkDataConflict(userId: String) {
-        val hasCloudData = syncRepository.hasCloudData(userId)
-        val hasLocalData = syncRepository.hasLocalData()
+        try {
+            val hasCloudData = syncRepository.hasCloudData(userId)
+            val hasLocalData = syncRepository.hasLocalData()
 
-        if (hasCloudData && hasLocalData) {
-            _uiState.update { it.copy(showLocalDataWarning = true, isLoading = false) }
-        } else {
-            performInitialSync(userId)
+            if (hasCloudData && hasLocalData) {
+                _uiState.update { it.copy(showLocalDataWarning = true, isLoading = false) }
+            } else {
+                performInitialSync(userId)
+            }
+        } catch (e: Exception) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    signInComplete = true,
+                    error = "Sync check failed: ${e.message}"
+                )
+            }
         }
     }
 
