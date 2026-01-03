@@ -89,6 +89,8 @@ class OnboardingViewModel @Inject constructor(
         _uiState.update { it.copy(currentStep = step) }
     }
 
+    private var plansInserted = false
+
     fun completeOnboarding() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -98,28 +100,33 @@ class OnboardingViewModel @Inject constructor(
                 onboardingRepository.setSelectedGoal(goal)
             }
 
-            // Activate selected plans
-            val today = LocalDate.now()
-            val reminderTime = if (_uiState.value.reminderEnabled) {
-                _uiState.value.reminderTime
-            } else null
+            // Only insert plans once
+            if (!plansInserted) {
+                plansInserted = true
 
-            val allPlans = _uiState.value.recommendedPlans + _uiState.value.otherPlans
-            val selectedPlans = allPlans.filter { it.id in _uiState.value.selectedPlanIds }
+                // Activate selected plans
+                val today = LocalDate.now()
+                val reminderTime = if (_uiState.value.reminderEnabled) {
+                    _uiState.value.reminderTime
+                } else null
 
-            selectedPlans.forEach { presetPlan ->
-                val newPlan = presetPlan.copy(
-                    id = UUID.randomUUID().toString(),
-                    startDate = today,
-                    isActive = true,
-                    reminderEnabled = _uiState.value.reminderEnabled,
-                    reminderTime = reminderTime
-                )
-                workoutPlanRepository.insertPlan(newPlan)
+                val allPlans = _uiState.value.recommendedPlans + _uiState.value.otherPlans
+                val selectedPlans = allPlans.filter { it.id in _uiState.value.selectedPlanIds }
 
-                // Schedule reminder for this plan if enabled
-                if (_uiState.value.reminderEnabled) {
-                    notificationScheduler.schedulePlanReminder(newPlan)
+                selectedPlans.forEach { presetPlan ->
+                    val newPlan = presetPlan.copy(
+                        id = UUID.randomUUID().toString(),
+                        startDate = today,
+                        isActive = true,
+                        reminderEnabled = _uiState.value.reminderEnabled,
+                        reminderTime = reminderTime
+                    )
+                    workoutPlanRepository.insertPlan(newPlan)
+
+                    // Schedule reminder for this plan if enabled
+                    if (_uiState.value.reminderEnabled) {
+                        notificationScheduler.schedulePlanReminder(newPlan)
+                    }
                 }
             }
 
