@@ -15,6 +15,9 @@ class IncremaxApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // Force IPv4 - fixes network issues on some devices with broken IPv6
+        System.setProperty("java.net.preferIPv4Stack", "true")
+        System.setProperty("java.net.preferIPv6Addresses", "false")
         notificationHelper.createNotificationChannels()
     }
 

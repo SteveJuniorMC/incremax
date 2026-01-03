@@ -349,7 +349,7 @@ fun SignInScreen(
                             conn.connect()
                             val code = conn.responseCode
                             conn.disconnect()
-                            "Network OK: HTTP $code"
+                            "OK: HTTP $code"
                         } catch (e: Exception) {
                             "FAILED: ${e.javaClass.simpleName}: ${e.message}"
                         }
