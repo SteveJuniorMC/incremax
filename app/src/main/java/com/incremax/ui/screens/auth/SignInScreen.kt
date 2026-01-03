@@ -295,8 +295,14 @@ fun SignInScreen(
             // DEBUG INFO - remove after fixing
             Spacer(modifier = Modifier.height(12.dp))
             var debugMsg by remember { mutableStateOf("waiting...") }
+            val hasInternet = remember {
+                context.packageManager.checkPermission(
+                    android.Manifest.permission.INTERNET,
+                    context.packageName
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
             Text(
-                text = "DEBUG: authState=${uiState.authState::class.simpleName}, isLoading=${uiState.isLoading}\n$debugMsg",
+                text = "DEBUG: authState=${uiState.authState::class.simpleName}, isLoading=${uiState.isLoading}\nINTERNET perm: $hasInternet\n$debugMsg",
                 color = Color.Gray,
                 style = MaterialTheme.typography.bodySmall
             )
