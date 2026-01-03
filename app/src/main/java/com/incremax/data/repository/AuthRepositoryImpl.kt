@@ -10,8 +10,9 @@ import com.incremax.domain.repository.AuthRepository
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withTimeout
+import kotlin.coroutines.resume
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -40,12 +41,17 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun signInWithGoogle(idToken: String): AuthResult {
         return try {
             val credential = GoogleAuthProvider.getCredential(idToken, null)
-            val result = withTimeout(30_000L) {
-                firebaseAuth.signInWithCredential(credential).await()
+            suspendCancellableCoroutine { continuation ->
+                firebaseAuth.signInWithCredential(credential)
+                    .addOnSuccessListener { result ->
+                        result.user?.let {
+                            continuation.resume(AuthResult.Success(it.toAuthUser())) {}
+                        } ?: continuation.resume(AuthResult.Error("No user returned")) {}
+                    }
+                    .addOnFailureListener { e ->
+                        continuation.resume(AuthResult.Error("${e.javaClass.simpleName}: ${e.message}", e)) {}
+                    }
             }
-            result.user?.let {
-                AuthResult.Success(it.toAuthUser())
-            } ?: AuthResult.Error("Sign-in failed: No user returned")
         } catch (e: Exception) {
             AuthResult.Error("${e.javaClass.simpleName}: ${e.message}", e)
         }
