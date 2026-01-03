@@ -1,5 +1,6 @@
 package com.incremax.ui.screens.auth
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.incremax.domain.model.AuthResult
@@ -11,6 +12,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private const val TAG = "AuthViewModel"
 
 data class AuthUiState(
     val isLoading: Boolean = false,
@@ -34,8 +37,10 @@ class AuthViewModel @Inject constructor(
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
     init {
+        Log.d(TAG, "AuthViewModel initialized")
         viewModelScope.launch {
             authRepository.authState.collect { state ->
+                Log.d(TAG, "authState changed: $state")
                 _uiState.update { it.copy(authState = state) }
 
                 if (state is AuthState.Authenticated) {
@@ -91,6 +96,9 @@ class AuthViewModel @Inject constructor(
     fun signInWithEmail() {
         val email = _uiState.value.emailInput.trim()
         val password = _uiState.value.passwordInput
+        val isSignUp = _uiState.value.isSignUpMode
+
+        Log.d(TAG, "signInWithEmail called: email=$email, isSignUp=$isSignUp")
 
         if (email.isBlank()) {
             _uiState.update { it.copy(error = "Please enter your email") }
@@ -106,18 +114,21 @@ class AuthViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            Log.d(TAG, "signInWithEmail: setting isLoading=true, calling repository...")
             _uiState.update { it.copy(isLoading = true, error = null) }
-            val result = if (_uiState.value.isSignUpMode) {
+            val result = if (isSignUp) {
                 authRepository.signUpWithEmail(email, password)
             } else {
                 authRepository.signInWithEmail(email, password)
             }
 
+            Log.d(TAG, "signInWithEmail: repository returned: $result")
             when (result) {
                 is AuthResult.Success -> {
-                    // Auth state listener handles the rest
+                    Log.d(TAG, "signInWithEmail: SUCCESS - waiting for auth state listener")
                 }
                 is AuthResult.Error -> {
+                    Log.e(TAG, "signInWithEmail: ERROR - ${result.message}")
                     _uiState.update { it.copy(isLoading = false, error = result.message) }
                 }
             }
