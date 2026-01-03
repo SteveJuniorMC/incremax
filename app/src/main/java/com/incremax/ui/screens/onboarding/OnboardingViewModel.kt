@@ -40,6 +40,17 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
+    fun showAllChallenges() {
+        val allPlans = PresetPlans.all
+        _uiState.update {
+            it.copy(
+                selectedLevel = null,
+                recommendedPlans = allPlans,
+                selectedPlanIds = emptySet()
+            )
+        }
+    }
+
     fun togglePlanSelection(planId: String) {
         _uiState.update {
             val newSelection = if (planId in it.selectedPlanIds) {

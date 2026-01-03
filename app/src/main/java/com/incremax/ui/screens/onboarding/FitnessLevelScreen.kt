@@ -24,6 +24,7 @@ import com.incremax.domain.model.DifficultyLevel
 fun FitnessLevelScreen(
     selectedLevel: DifficultyLevel?,
     onLevelSelected: (DifficultyLevel) -> Unit,
+    onShowAll: () -> Unit,
     onContinue: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -75,33 +76,40 @@ fun FitnessLevelScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 FitnessLevelCard(
-                    level = DifficultyLevel.BEGINNER,
                     title = "Beginner",
                     description = "I'm just starting out or getting back into fitness",
-                    example = "e.g., 1 push-up → 20 push-ups",
                     color = Color(0xFF4CAF50),
                     isSelected = selectedLevel == DifficultyLevel.BEGINNER,
                     onClick = { onLevelSelected(DifficultyLevel.BEGINNER) }
                 )
 
                 FitnessLevelCard(
-                    level = DifficultyLevel.INTERMEDIATE,
                     title = "Intermediate",
                     description = "I exercise regularly and have a fitness base",
-                    example = "e.g., 15 push-ups → 50 push-ups",
                     color = Color(0xFFFF9800),
                     isSelected = selectedLevel == DifficultyLevel.INTERMEDIATE,
                     onClick = { onLevelSelected(DifficultyLevel.INTERMEDIATE) }
                 )
 
                 FitnessLevelCard(
-                    level = DifficultyLevel.ADVANCED,
                     title = "Advanced",
                     description = "I'm fit and ready to push my limits",
-                    example = "e.g., 30 push-ups → 100 push-ups",
                     color = Color(0xFFF44336),
                     isSelected = selectedLevel == DifficultyLevel.ADVANCED,
                     onClick = { onLevelSelected(DifficultyLevel.ADVANCED) }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Show all challenges option
+            TextButton(
+                onClick = { onShowAll() }
+            ) {
+                Text(
+                    text = "Show me all challenges",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -129,10 +137,8 @@ fun FitnessLevelScreen(
 
 @Composable
 private fun FitnessLevelCard(
-    level: DifficultyLevel,
     title: String,
     description: String,
-    example: String,
     color: Color,
     isSelected: Boolean,
     onClick: () -> Unit
@@ -193,13 +199,6 @@ private fun FitnessLevelCard(
                     text = description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = example,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = color,
-                    fontWeight = FontWeight.Medium
                 )
             }
 

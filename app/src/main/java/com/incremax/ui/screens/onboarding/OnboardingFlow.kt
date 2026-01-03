@@ -56,6 +56,10 @@ fun OnboardingFlow(
             OnboardingStep.FITNESS_LEVEL -> FitnessLevelScreen(
                 selectedLevel = uiState.selectedLevel,
                 onLevelSelected = { viewModel.selectFitnessLevel(it) },
+                onShowAll = {
+                    viewModel.showAllChallenges()
+                    viewModel.navigateToStep(OnboardingStep.PLAN_RECOMMENDATION)
+                },
                 onContinue = { viewModel.navigateToStep(OnboardingStep.PLAN_RECOMMENDATION) },
                 onBack = { viewModel.navigateToStep(OnboardingStep.WELCOME) }
             )
@@ -63,7 +67,7 @@ fun OnboardingFlow(
             OnboardingStep.PLAN_RECOMMENDATION -> PlanRecommendationScreen(
                 recommendedPlans = uiState.recommendedPlans,
                 selectedPlanIds = uiState.selectedPlanIds,
-                levelName = uiState.selectedLevel?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "",
+                levelName = uiState.selectedLevel?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "All",
                 onTogglePlan = { viewModel.togglePlanSelection(it) },
                 onContinue = { viewModel.navigateToStep(OnboardingStep.REMINDER_SETUP) },
                 onBack = { viewModel.navigateToStep(OnboardingStep.FITNESS_LEVEL) }
