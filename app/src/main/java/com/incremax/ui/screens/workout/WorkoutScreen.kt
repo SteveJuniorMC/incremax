@@ -1,38 +1,26 @@
 package com.incremax.ui.screens.workout
 
 import android.view.HapticFeedbackConstants
-import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.incremax.domain.model.*
 import com.incremax.domain.repository.*
-import com.incremax.ui.components.CelebrationScreen
-import com.incremax.ui.components.CelebrationType
-import com.incremax.ui.theme.XpGold
+import com.incremax.ui.components.RewardScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -51,9 +39,12 @@ data class WorkoutUiState(
     val isCompleted: Boolean = false,
     val xpEarned: Int = 0,
     val elapsedSeconds: Long = 0,
-    val showCompletionDialog: Boolean = false,
-    val celebrations: List<CelebrationType> = emptyList(),
-    val showCelebrations: Boolean = false
+    val showRewardScreen: Boolean = false,
+    val totalXpBefore: Int = 0,
+    val previousLevel: Int = 1,
+    val newLevel: Int = 1,
+    val currentStreak: Int = 0,
+    val newAchievements: List<Achievement> = emptyList()
 )
 
 @HiltViewModel
@@ -132,6 +123,7 @@ class WorkoutViewModel @Inject constructor(
             // Get current stats before changes
             val userStatsBefore = userStatsRepository.getUserStatsSync()
             val previousLevel = userStatsBefore.level
+            val totalXpBefore = userStatsBefore.totalXp
             val achievementsBefore = userStatsRepository.getUnlockedAchievementIds()
 
             // Calculate XP
@@ -186,10 +178,9 @@ class WorkoutViewModel @Inject constructor(
                 workoutPlanRepository.updatePlan(completedPlan)
             }
 
-            // Get updated stats to check for level up and new achievements
+            // Get updated stats
             val userStatsAfter = userStatsRepository.getUserStatsSync()
             val newLevel = userStatsAfter.level
-            val leveledUp = newLevel > previousLevel
 
             val achievementsAfter = userStatsRepository.getUnlockedAchievementIds()
             val newAchievementIds = achievementsAfter - achievementsBefore
@@ -199,58 +190,23 @@ class WorkoutViewModel @Inject constructor(
                 emptyList()
             }
 
-            // Build celebration list
-            val celebrations = mutableListOf<CelebrationType>()
-
-            // Level up celebration
-            if (leveledUp) {
-                celebrations.add(CelebrationType.LevelUp(previousLevel, newLevel))
-            }
-
-            // Streak milestone celebrations (7, 14, 30, 60, 90, 180, 365)
-            val streakMilestones = listOf(7, 14, 30, 60, 90, 180, 365)
-            val currentStreak = userStatsAfter.currentStreak
-            if (streakMilestones.contains(currentStreak) && currentStreak > userStatsBefore.currentStreak) {
-                celebrations.add(CelebrationType.StreakMilestone(currentStreak))
-            }
-
-            // Achievement celebrations
-            newAchievements.forEach { achievement ->
-                celebrations.add(CelebrationType.AchievementUnlocked(achievement))
-            }
-
-            // Plan completed celebration
-            val planCompleted = state.completedAmount >= plan.targetAmount &&
-                plan.getCurrentTarget(today) >= plan.targetAmount
-            if (planCompleted) {
-                celebrations.add(CelebrationType.PlanCompleted(plan.name))
-            }
-
             _uiState.update {
                 it.copy(
                     isCompleted = true,
                     xpEarned = xpEarned,
-                    showCompletionDialog = true,
-                    celebrations = celebrations,
-                    showCelebrations = celebrations.isNotEmpty()
+                    showRewardScreen = true,
+                    totalXpBefore = totalXpBefore,
+                    previousLevel = previousLevel,
+                    newLevel = newLevel,
+                    currentStreak = newStreak,
+                    newAchievements = newAchievements
                 )
             }
         }
     }
 
-    fun dismissCompletionDialog() {
-        _uiState.update { it.copy(showCompletionDialog = false) }
-        // If no celebrations, go home
-        val state = _uiState.value
-        if (!state.showCelebrations) {
-            viewModelScope.launch {
-                _workoutComplete.emit(Unit)
-            }
-        }
-    }
-
-    fun dismissCelebrations() {
-        _uiState.update { it.copy(showCelebrations = false, celebrations = emptyList()) }
+    fun dismissRewardScreen() {
+        _uiState.update { it.copy(showRewardScreen = false) }
         viewModelScope.launch {
             _workoutComplete.emit(Unit)
         }
@@ -277,23 +233,18 @@ fun WorkoutScreen(
         }
     }
 
-    // Completion Dialog
-    if (uiState.showCompletionDialog) {
-        WorkoutCompletionDialog(
+    // Reward Screen (Duolingo-style)
+    if (uiState.showRewardScreen) {
+        RewardScreen(
             xpEarned = uiState.xpEarned,
-            completedAmount = uiState.completedAmount,
-            targetAmount = uiState.targetAmount,
-            exerciseUnit = uiState.exercise?.unit ?: "reps",
-            onDismiss = { viewModel.dismissCompletionDialog() }
+            totalXpBefore = uiState.totalXpBefore,
+            previousLevel = uiState.previousLevel,
+            newLevel = uiState.newLevel,
+            currentStreak = uiState.currentStreak,
+            newAchievements = uiState.newAchievements,
+            onDismiss = { viewModel.dismissRewardScreen() }
         )
-    }
-
-    // Celebration Screen (shows after completion dialog for level ups, achievements, streaks, etc.)
-    if (!uiState.showCompletionDialog && uiState.showCelebrations && uiState.celebrations.isNotEmpty()) {
-        CelebrationScreen(
-            celebrations = uiState.celebrations,
-            onDismiss = { viewModel.dismissCelebrations() }
-        )
+        return // Don't show workout screen behind it
     }
 
     Scaffold(
@@ -564,206 +515,6 @@ fun WorkoutScreen(
                             "Finish Early",
                         style = MaterialTheme.typography.titleMedium
                     )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun WorkoutCompletionDialog(
-    xpEarned: Int,
-    completedAmount: Int,
-    targetAmount: Int,
-    exerciseUnit: String,
-    onDismiss: () -> Unit
-) {
-    val isPerfect = completedAmount >= targetAmount
-
-    // Haptic feedback on dialog show
-    val view = LocalView.current
-    LaunchedEffect(Unit) {
-        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-    }
-
-    // Animation states
-    var showContent by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        delay(100)
-        showContent = true
-    }
-
-    // Icon animation
-    val iconScale by animateFloatAsState(
-        targetValue = if (showContent) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "iconScale"
-    )
-
-    // Title animation
-    val titleAlpha by animateFloatAsState(
-        targetValue = if (showContent) 1f else 0f,
-        animationSpec = tween(300, delayMillis = 150),
-        label = "titleAlpha"
-    )
-
-    // XP card animation
-    val xpScale by animateFloatAsState(
-        targetValue = if (showContent) 1f else 0.8f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-            visibilityThreshold = 0.01f
-        ),
-        label = "xpScale"
-    )
-    val xpAlpha by animateFloatAsState(
-        targetValue = if (showContent) 1f else 0f,
-        animationSpec = tween(300, delayMillis = 300),
-        label = "xpAlpha"
-    )
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            // Dialog card
-            Card(
-                modifier = Modifier
-                    .padding(32.dp)
-                    .fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(24.dp)
-                        .fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Animated icon
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .scale(iconScale)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    colors = if (isPerfect) {
-                                        listOf(
-                                            MaterialTheme.colorScheme.primary,
-                                            MaterialTheme.colorScheme.tertiary
-                                        )
-                                    } else {
-                                        listOf(
-                                            MaterialTheme.colorScheme.secondary,
-                                            MaterialTheme.colorScheme.secondary
-                                        )
-                                    }
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            if (isPerfect) Icons.Default.EmojiEvents else Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(44.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Title with animation
-                    Text(
-                        text = if (isPerfect) "Excellent!" else "Good Job!",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.graphicsLayer(alpha = titleAlpha)
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Completion stats
-                    Text(
-                        text = "$completedAmount / $targetAmount $exerciseUnit",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        modifier = Modifier.graphicsLayer(alpha = titleAlpha)
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // XP earned card with animation
-                    Card(
-                        modifier = Modifier
-                            .scale(xpScale)
-                            .graphicsLayer(alpha = xpAlpha),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                        ),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 28.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = null,
-                                tint = XpGold,
-                                modifier = Modifier.size(28.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "+$xpEarned XP",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                        }
-                    }
-
-                    if (isPerfect) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Target reached!",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.graphicsLayer(alpha = xpAlpha)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Continue button
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text(
-                            "Continue",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
                 }
             }
         }
