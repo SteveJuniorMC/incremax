@@ -330,25 +330,31 @@ fun SignInScreen(
             }
 
             // Network test
+            var networkResult by remember { mutableStateOf("tap to test") }
             Button(
                 onClick = {
-                    debugMsg = "Testing network to Firebase..."
+                    networkResult = "Testing..."
                     Thread {
-                        try {
-                            val url = java.net.URL("https://identitytoolkit.googleapis.com/")
+                        val result = try {
+                            val url = java.net.URL("https://www.google.com/")
                             val conn = url.openConnection() as java.net.HttpURLConnection
                             conn.connectTimeout = 5000
+                            conn.readTimeout = 5000
                             conn.connect()
-                            debugMsg = "Network OK: HTTP ${conn.responseCode}"
+                            val code = conn.responseCode
                             conn.disconnect()
+                            "Network OK: HTTP $code"
                         } catch (e: Exception) {
-                            debugMsg = "Network FAILED: ${e.javaClass.simpleName}: ${e.message}"
+                            "FAILED: ${e.javaClass.simpleName}: ${e.message}"
+                        }
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            networkResult = result
                         }
                     }.start()
                 },
                 modifier = Modifier.padding(top = 4.dp)
             ) {
-                Text("Test Network")
+                Text("Net: $networkResult")
             }
 
             // Forgot password (only in sign-in mode)
