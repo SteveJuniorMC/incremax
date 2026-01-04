@@ -18,10 +18,10 @@ data class UserStats(
         )
 
         private val levelTitles = listOf(
-            "Beginner", "Starter", "Novice", "Apprentice", "Regular",
-            "Dedicated", "Committed", "Strong", "Powerful", "Warrior",
-            "Fighter", "Champion", "Elite", "Master", "Grandmaster",
-            "Legend", "Mythic", "Immortal", "Transcendent", "Ultimate"
+            "Starter", "Beginner", "Novice", "Enthusiast", "Apprentice",
+            "Fighter", "Athlete", "Warrior", "Gladiator", "Contender",
+            "Master", "Grandmaster", "Champion", "Hero", "Legend",
+            "Paragon", "Demigod", "Titan", "Immortal", "Olympian"
         )
 
         fun calculateLevel(xp: Int): Int {
