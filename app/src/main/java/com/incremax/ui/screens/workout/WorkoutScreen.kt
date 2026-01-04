@@ -21,6 +21,7 @@ import androidx.lifecycle.viewModelScope
 import com.incremax.domain.model.*
 import com.incremax.domain.repository.*
 import com.incremax.ui.components.ChallengeCompleteScreen
+import com.incremax.ui.components.ContinueWorkoutScreen
 import com.incremax.ui.components.RewardScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -43,6 +44,8 @@ data class WorkoutUiState(
     val showChallengeComplete: Boolean = false,
     val completedPlan: WorkoutPlan? = null,
     val showRewardScreen: Boolean = false,
+    val showContinueScreen: Boolean = false,
+    val remainingPlans: List<WorkoutPlan> = emptyList(),
     val totalXpBefore: Int = 0,
     val previousLevel: Int = 1,
     val newLevel: Int = 1,
@@ -224,7 +227,43 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun dismissRewardScreen() {
-        // Navigate immediately without changing state to avoid flash
+        viewModelScope.launch {
+            val currentPlanId = _uiState.value.plan?.id
+            val today = LocalDate.now()
+
+            // Get all active plans
+            val activePlans = workoutPlanRepository.getActivePlans().first()
+
+            // Find plans that haven't been completed today (excluding current plan)
+            val remainingPlans = activePlans.filter { plan ->
+                plan.id != currentPlanId &&
+                    workoutSessionRepository.getSessionForPlanOnDate(plan.id, today)?.isCompleted != true
+            }
+
+            if (remainingPlans.isNotEmpty()) {
+                _uiState.update {
+                    it.copy(
+                        showRewardScreen = false,
+                        showContinueScreen = true,
+                        remainingPlans = remainingPlans
+                    )
+                }
+            } else {
+                // No more plans, navigate home
+                _workoutComplete.emit(Unit)
+            }
+        }
+    }
+
+    fun selectNextPlan(plan: WorkoutPlan) {
+        // Reset state and load new workout
+        _uiState.update {
+            WorkoutUiState(isLoading = true)
+        }
+        loadWorkout(plan.id)
+    }
+
+    fun finishWorkouts() {
         viewModelScope.launch {
             _workoutComplete.emit(Unit)
         }
@@ -272,7 +311,17 @@ fun WorkoutScreen(
             newAchievements = uiState.newAchievements,
             onDismiss = { viewModel.dismissRewardScreen() }
         )
-        return // Don't show workout screen behind it
+        return
+    }
+
+    // Continue Workout Screen (shown after rewards if there are more plans)
+    if (uiState.showContinueScreen && uiState.remainingPlans.isNotEmpty()) {
+        ContinueWorkoutScreen(
+            remainingPlans = uiState.remainingPlans,
+            onSelectPlan = { plan -> viewModel.selectNextPlan(plan) },
+            onFinish = { viewModel.finishWorkouts() }
+        )
+        return
     }
 
     Scaffold(
