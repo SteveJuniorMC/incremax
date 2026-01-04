@@ -1,8 +1,11 @@
 package com.incremax.notification
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import androidx.work.Constraints
-import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -10,11 +13,11 @@ import com.incremax.domain.model.NotificationSettings
 import com.incremax.domain.model.WorkoutPlan
 import com.incremax.domain.repository.WorkoutPlanRepository
 import com.incremax.notification.worker.StreakAlertWorker
-import com.incremax.notification.worker.WorkoutReminderWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -25,49 +28,71 @@ class NotificationScheduler @Inject constructor(
     private val workoutPlanRepository: WorkoutPlanRepository
 ) {
     private val workManager = WorkManager.getInstance(context)
+    private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     fun schedulePlanReminder(plan: WorkoutPlan) {
         val time = plan.reminderTime ?: return
         if (!plan.reminderEnabled) return
 
-        val delay = calculateDelayUntil(time)
-        val workName = getPlanReminderWorkName(plan.id)
+        val triggerTime = calculateTriggerTimeMillis(time)
+        val requestCode = plan.id.hashCode()
 
-        val inputData = Data.Builder()
-            .putString(WorkoutReminderWorker.KEY_PLAN_ID, plan.id)
-            .putString(WorkoutReminderWorker.KEY_PLAN_NAME, plan.name)
-            .build()
+        val intent = Intent(context, ReminderAlarmReceiver::class.java).apply {
+            putExtra(ReminderAlarmReceiver.EXTRA_PLAN_ID, plan.id)
+            putExtra(ReminderAlarmReceiver.EXTRA_PLAN_NAME, plan.name)
+        }
 
-        val workRequest = PeriodicWorkRequestBuilder<WorkoutReminderWorker>(
-            repeatInterval = 1,
-            repeatIntervalTimeUnit = TimeUnit.DAYS
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-            .setInputData(inputData)
-            .addTag(PLAN_REMINDER_TAG)
-            .addTag(plan.id)
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiresBatteryNotLow(true)
-                    .build()
+
+        // Use exact alarm for reliable timing
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+            } else {
+                // Fallback to inexact alarm if permission not granted
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
             )
-            .build()
-
-        workManager.enqueueUniquePeriodicWork(
-            workName,
-            ExistingPeriodicWorkPolicy.UPDATE,
-            workRequest
-        )
+        } else {
+            alarmManager.setExact(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
+            )
+        }
     }
 
     fun cancelPlanReminder(planId: String) {
-        workManager.cancelUniqueWork(getPlanReminderWorkName(planId))
+        val requestCode = planId.hashCode()
+        val intent = Intent(context, ReminderAlarmReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmManager.cancel(pendingIntent)
     }
 
     suspend fun scheduleAllPlanReminders() {
-        // Cancel all existing plan reminders first
-        workManager.cancelAllWorkByTag(PLAN_REMINDER_TAG)
-
         // Schedule reminders for all plans that have them enabled
         val plans = workoutPlanRepository.getPlansWithRemindersSync()
         plans.forEach { plan ->
@@ -103,20 +128,23 @@ class NotificationScheduler @Inject constructor(
     }
 
     fun scheduleWorkoutReminder(time: LocalTime) {
-        // Legacy global reminder - schedules all per-plan reminders
+        // Schedule all per-plan reminders
         kotlinx.coroutines.runBlocking {
             scheduleAllPlanReminders()
         }
     }
 
-    fun cancelWorkoutReminder() {
+    suspend fun cancelWorkoutReminder() {
         // Cancel all per-plan reminders
-        workManager.cancelAllWorkByTag(PLAN_REMINDER_TAG)
+        val plans = workoutPlanRepository.getPlansWithRemindersSync()
+        plans.forEach { plan ->
+            cancelPlanReminder(plan.id)
+        }
     }
 
-    fun updateSchedulesFromSettings(settings: NotificationSettings) {
+    suspend fun updateSchedulesFromSettings(settings: NotificationSettings) {
         if (settings.workoutRemindersEnabled) {
-            scheduleWorkoutReminder(settings.workoutReminderTime)
+            scheduleAllPlanReminders()
         } else {
             cancelWorkoutReminder()
         }
@@ -139,12 +167,18 @@ class NotificationScheduler @Inject constructor(
         return Duration.between(now, targetDateTime).toMillis()
     }
 
-    private fun getPlanReminderWorkName(planId: String) = "plan_reminder_$planId"
+    private fun calculateTriggerTimeMillis(targetTime: LocalTime): Long {
+        val now = LocalDateTime.now()
+        var targetDateTime = now.toLocalDate().atTime(targetTime)
+
+        if (now >= targetDateTime) {
+            targetDateTime = targetDateTime.plusDays(1)
+        }
+
+        return targetDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    }
 
     companion object {
-        const val WORKOUT_REMINDER_WORK_NAME = "workout_reminder"
-        const val WORKOUT_REMINDER_TAG = "workout_reminder_tag"
-        const val PLAN_REMINDER_TAG = "plan_reminder_tag"
         const val STREAK_ALERT_WORK_NAME = "streak_alert"
         const val STREAK_ALERT_TAG = "streak_alert_tag"
     }

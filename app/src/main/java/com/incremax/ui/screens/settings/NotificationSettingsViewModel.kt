@@ -110,6 +110,10 @@ class NotificationSettingsViewModel @Inject constructor(
         notificationHelper.showWorkoutReminder(3)
     }
 
+    fun testPlanReminder() {
+        notificationHelper.showPlanReminder("Test Plan")
+    }
+
     fun testStreakAlert() {
         notificationHelper.showStreakAlert(currentStreak = 5, hasWorkedOutToday = false)
     }

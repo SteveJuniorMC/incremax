@@ -271,6 +271,12 @@ fun NotificationSettingsScreen(
                         Text("Test Workout Reminder")
                     }
                     OutlinedButton(
+                        onClick = { viewModel.testPlanReminder() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Test Plan Reminder")
+                    }
+                    OutlinedButton(
                         onClick = { viewModel.testStreakAlert() },
                         modifier = Modifier.fillMaxWidth()
                     ) {
