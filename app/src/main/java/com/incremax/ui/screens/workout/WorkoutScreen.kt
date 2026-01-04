@@ -50,7 +50,11 @@ data class WorkoutUiState(
     val previousLevel: Int = 1,
     val newLevel: Int = 1,
     val currentStreak: Int = 0,
-    val newAchievements: List<Achievement> = emptyList()
+    val newAchievements: List<Achievement> = emptyList(),
+    // Accumulated rewards across multiple workouts in a session
+    val sessionStartXp: Int? = null,
+    val sessionStartLevel: Int? = null,
+    val accumulatedAchievements: List<Achievement> = emptyList()
 )
 
 @HiltViewModel
@@ -78,13 +82,23 @@ class WorkoutViewModel @Inject constructor(
             // Check if already completed today
             val existingSession = workoutSessionRepository.getSessionForPlanOnDate(planId, today)
 
+            // Capture session start stats if this is the first workout
+            val currentState = _uiState.value
+            val userStats = userStatsRepository.getUserStatsSync()
+            val sessionStartXp = currentState.sessionStartXp ?: userStats.totalXp
+            val sessionStartLevel = currentState.sessionStartLevel ?: userStats.level
+            val accumulatedAchievements = currentState.accumulatedAchievements
+
             _uiState.value = WorkoutUiState(
                 plan = plan,
                 exercise = exercise,
                 targetAmount = plan.getCurrentTarget(today),
                 completedAmount = existingSession?.completedAmount ?: 0,
                 isLoading = false,
-                isCompleted = existingSession?.isCompleted == true
+                isCompleted = existingSession?.isCompleted == true,
+                sessionStartXp = sessionStartXp,
+                sessionStartLevel = sessionStartLevel,
+                accumulatedAchievements = accumulatedAchievements
             )
 
             startTime = System.currentTimeMillis()
@@ -199,73 +213,103 @@ class WorkoutViewModel @Inject constructor(
                 emptyList()
             }
 
+            // Calculate TOTAL XP earned (workout + achievements)
+            val totalXpEarned = userStatsAfter.totalXp - totalXpBefore
+
+            // Accumulate achievements from this workout
+            val allAccumulatedAchievements = state.accumulatedAchievements + newAchievements
+
+            // Check for remaining plans
+            val activePlans = workoutPlanRepository.getActivePlans().first()
+            val remainingPlans = activePlans.filter { p ->
+                p.id != plan.id &&
+                    workoutSessionRepository.getSessionForPlanOnDate(p.id, today)?.isCompleted != true
+            }
+
             _uiState.update {
                 it.copy(
                     isCompleted = true,
-                    xpEarned = xpEarned,
+                    xpEarned = totalXpEarned,
                     showChallengeComplete = isChallengeComplete,
                     completedPlan = if (isChallengeComplete) plan else null,
-                    showRewardScreen = !isChallengeComplete, // Show reward if not a challenge complete
+                    showRewardScreen = false, // Don't show reward yet
+                    remainingPlans = remainingPlans,
                     totalXpBefore = totalXpBefore,
                     previousLevel = previousLevel,
                     newLevel = newLevel,
                     currentStreak = newStreak,
-                    newAchievements = newAchievements
+                    newAchievements = newAchievements,
+                    accumulatedAchievements = allAccumulatedAchievements
                 )
             }
         }
     }
 
     fun dismissChallengeComplete() {
-        // After challenge complete screen, show the reward screen
+        // After challenge complete screen, check for remaining plans
         _uiState.update {
-            it.copy(
-                showChallengeComplete = false,
-                showRewardScreen = true
-            )
+            if (it.remainingPlans.isNotEmpty()) {
+                it.copy(
+                    showChallengeComplete = false,
+                    showContinueScreen = true
+                )
+            } else {
+                it.copy(
+                    showChallengeComplete = false,
+                    showRewardScreen = true
+                )
+            }
+        }
+    }
+
+    fun showContinueScreen() {
+        _uiState.update {
+            it.copy(showContinueScreen = true)
         }
     }
 
     fun dismissRewardScreen() {
+        // All done, navigate home
         viewModelScope.launch {
-            val currentPlanId = _uiState.value.plan?.id
-            val today = LocalDate.now()
-
-            // Get all active plans
-            val activePlans = workoutPlanRepository.getActivePlans().first()
-
-            // Find plans that haven't been completed today (excluding current plan)
-            val remainingPlans = activePlans.filter { plan ->
-                plan.id != currentPlanId &&
-                    workoutSessionRepository.getSessionForPlanOnDate(plan.id, today)?.isCompleted != true
-            }
-
-            if (remainingPlans.isNotEmpty()) {
-                _uiState.update {
-                    it.copy(
-                        showRewardScreen = false,
-                        showContinueScreen = true,
-                        remainingPlans = remainingPlans
-                    )
-                }
-            } else {
-                // No more plans, navigate home
-                _workoutComplete.emit(Unit)
-            }
+            _workoutComplete.emit(Unit)
         }
     }
 
     fun selectNextPlan(plan: WorkoutPlan) {
-        // Reset state and load new workout
+        // Preserve session state but reset workout-specific state
         _uiState.update {
-            WorkoutUiState(isLoading = true)
+            WorkoutUiState(
+                isLoading = true,
+                sessionStartXp = it.sessionStartXp,
+                sessionStartLevel = it.sessionStartLevel,
+                accumulatedAchievements = it.accumulatedAchievements
+            )
         }
         loadWorkout(plan.id)
     }
 
     fun finishWorkouts() {
+        // Show reward screen with accumulated stats
         viewModelScope.launch {
-            _workoutComplete.emit(Unit)
+            val userStats = userStatsRepository.getUserStatsSync()
+            val state = _uiState.value
+
+            // Calculate total XP earned in session
+            val sessionStartXp = state.sessionStartXp ?: 0
+            val totalXpEarned = userStats.totalXp - sessionStartXp
+
+            _uiState.update {
+                it.copy(
+                    showContinueScreen = false,
+                    showRewardScreen = true,
+                    xpEarned = totalXpEarned,
+                    totalXpBefore = sessionStartXp,
+                    previousLevel = it.sessionStartLevel ?: 1,
+                    newLevel = userStats.level,
+                    currentStreak = userStats.currentStreak,
+                    newAchievements = it.accumulatedAchievements
+                )
+            }
         }
     }
 }
@@ -290,6 +334,18 @@ fun WorkoutScreen(
         }
     }
 
+    // When workout completes (no challenge), show continue screen if more plans available
+    LaunchedEffect(uiState.isCompleted, uiState.showChallengeComplete) {
+        if (uiState.isCompleted && !uiState.showChallengeComplete && !uiState.showRewardScreen && !uiState.showContinueScreen) {
+            // Workout completed but no challenge - check for more plans
+            if (uiState.remainingPlans.isNotEmpty()) {
+                viewModel.showContinueScreen()
+            } else {
+                viewModel.finishWorkouts()
+            }
+        }
+    }
+
     // Challenge Complete Screen (shown first when a challenge is finished)
     val completedPlan = uiState.completedPlan
     if (uiState.showChallengeComplete && completedPlan != null) {
@@ -300,7 +356,17 @@ fun WorkoutScreen(
         return
     }
 
-    // Reward Screen (Duolingo-style)
+    // Continue Workout Screen (shown after challenge complete, before rewards)
+    if (uiState.showContinueScreen && uiState.remainingPlans.isNotEmpty()) {
+        ContinueWorkoutScreen(
+            remainingPlans = uiState.remainingPlans,
+            onSelectPlan = { plan -> viewModel.selectNextPlan(plan) },
+            onFinish = { viewModel.finishWorkouts() }
+        )
+        return
+    }
+
+    // Reward Screen (shown at the very end, after all workouts)
     if (uiState.showRewardScreen) {
         RewardScreen(
             xpEarned = uiState.xpEarned,
@@ -310,16 +376,6 @@ fun WorkoutScreen(
             currentStreak = uiState.currentStreak,
             newAchievements = uiState.newAchievements,
             onDismiss = { viewModel.dismissRewardScreen() }
-        )
-        return
-    }
-
-    // Continue Workout Screen (shown after rewards if there are more plans)
-    if (uiState.showContinueScreen && uiState.remainingPlans.isNotEmpty()) {
-        ContinueWorkoutScreen(
-            remainingPlans = uiState.remainingPlans,
-            onSelectPlan = { plan -> viewModel.selectNextPlan(plan) },
-            onFinish = { viewModel.finishWorkouts() }
         )
         return
     }
